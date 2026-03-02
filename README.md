@@ -2,7 +2,7 @@ The aim of this master's thesis project is to enhance the Boston dynamics Spot r
 
 # System requirements
 - Ubuntu 22.04
-- ROS 2 Hmble
+- ROS 2 Humble
 - Python 3.10
 - Boston Dynamics Spot SDK 
 
