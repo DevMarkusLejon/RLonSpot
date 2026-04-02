@@ -58,6 +58,11 @@ def print_observations(observations: List[float]):
     print("joint_velocity", observations[31:50])
     print("last_action", observations[50:69])
 
+def log_observations(observations: List[float]):
+    """Log the observation data in file."""
+    import csv
+
+    
 
 class OnnxCommandGenerator:
     """class to be used as generator for spots command stream that executes

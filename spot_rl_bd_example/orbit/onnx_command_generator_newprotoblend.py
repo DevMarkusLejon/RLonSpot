@@ -54,9 +54,12 @@ def print_observations(observations: List[float]):
     print("base_linear_velocity:", observations[0:3])
     print("base_angular_velocity:", observations[3:6])
     print("projected_gravity:", observations[6:9])
-    print("joint_positions", observations[12:31])
-    print("joint_velocity", observations[31:50])
-    print("last_action", observations[50:69])
+    print("commanded_vel:", observations[9:12])
+    print("joint_positions:", observations[12:31])
+    print("joint_velocity:", observations[31:50])
+    print("last_action:", observations[50:69])
+    print("shifted_action:", observations[69:88])
+
 
 
 class OnnxCommandGenerator:
@@ -70,10 +73,14 @@ class OnnxCommandGenerator:
         self._config = config
         self._inference_session = ort.InferenceSession(policy_file_name)
         self._last_action = [0] * 19
+        self._shifted_action = [0] * 19
         self._count = 1
         self._init_pos = None
         self._init_load = None
         self.verbose = verbose
+
+        # own variable for logging
+        self._log_file = open("/home/spot/spot-rl-deployment/spot-rl-example/python/log/observation_log.txt")
 
         # own variable for create proto blend
         # true -> hold at init pos, false -> moves with policy
@@ -122,6 +129,7 @@ class OnnxCommandGenerator:
 
         # cache data for history and logging
         self._last_action = output
+        self._shifted_action = shifted_output
         self._count += 1
         self._context.count += 1
 
@@ -141,11 +149,15 @@ class OnnxCommandGenerator:
         observations += ob.get_base_angular_velocity(state)
         observations += ob.get_projected_gravity(state)
         observations += self._context.velocity_cmd
-        if self.verbose:
-            print("[INFO] cmd", self._context.velocity_cmd)
+        if self.verbose and self._count%25==0:
+            print_observations(observations)
+            #print("[INFO] cmd", self._context.velocity_cmd)
+            self.log_observations_to_file(observations)
         observations += ob.get_joint_positions(state, config)
         observations += ob.get_joint_velocity(state)
         observations += self._last_action
+        observations += self._shifted_action
+
         return observations
 
     def create_proto(self, pos_command: List[float]):
@@ -307,3 +319,31 @@ class OnnxCommandGenerator:
         # Set user key for latency tracking
         update_proto.joint_command.user_command_key = self._count
         return update_proto
+    def log_observations_to_file(self, observations: List[float]):
+        """feature to log observations into text file.
+        
+        arguments
+        observations -- list of float values ready to be passed into the model
+        """
+        lines = [
+            f"base_linear_velocity: {observations[0:3]}",
+            f"base_angular_velocity: {observations[3:6]}",
+            f"projected_gravity: {observations[6:9]}",
+            f"commanded_vel: {observations[9:12]}",
+            f"joint_positions: {observations[12:31]}",
+            f"joint_velocity: {observations[31:50]}",
+            f"last_action: {observations[50:69]}",
+            f"shifted_action: {observations[69:88]}"
+        ]
+
+        for line in lines:
+            self._log_file.write(line + "\n")
+
+        self._log_file.flush()
+
+    def close_logger_file(self):
+        """Close text log file."""
+        if hasattr(self, "_log_file") and self._log_file:
+            self._log_file.close()
+
+        

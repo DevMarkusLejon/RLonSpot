@@ -1,0 +1,21 @@
+Move file from pc to spot
+
+Move the env.yaml and policy.onnx out of bokertov
+Move the files from pc to Jetson with scp -P 20022 -r Path/to/folder/* spot@192.168.80.3:<path_to_copy_files> i created a dir labpol
+Connect to Jetson. ssh -p 20022 spot@192.168.80.3 , pswd: spot
+cd ~/spot-rl-deployment/spot-rl-example/python/utils/
+python3 env_converter.py
+Enter: /home/spot/<path_to_folder>
+cd to folder with policy files
+mv env_cfg.json policy.onnx ~/spot-rl-deployment/models
+cd ~/spot-rl-deployment/spot-rl-example/python
+
+
+Run policy on spot
+
+
+cd ~/spot-rl-deployment/spot-rl-example/python
+
+python3 spot_rl_demo.py <spot_ip> ~/spot-rl-deployment/models/<path_to_dir> --gamepad-config ./gamepad_config.json
+
+-m or --mock as argument to use spot_mock instead of real spot
