@@ -60,17 +60,17 @@ def print_observations(observations: List[float]):
     print("last_action:", observations[50:69])
 
 
-class OnnxDualCommandGenerator:
+class OnnxStandWalkCommandGenerator:
     """class to be used as generator for spots command stream that executes
     an onnx model and converts the output to a spot command"""
 
     def __init__(
         self, 
         context: OnnxControllerContext, 
-        body_config: OrbitConfig, 
-        arm_config: OrbitConfig,
-        body_policy_file_name: os.PathLike, 
-        arm_policy_file_name: os.PathLike,
+        stand_config: OrbitConfig, 
+        walk_config: OrbitConfig,
+        stand_policy_file_name: os.PathLike, 
+        walk_policy_file_name: os.PathLike,
         verbose: bool
     ):
         self._context = context
@@ -79,20 +79,15 @@ class OnnxDualCommandGenerator:
         self._init_load = None
         self.verbose = verbose
 
-        self._body_config = body_config
-        self._arm_config = arm_config
-        self._body_session = ort.InferenceSession(body_policy_file_name)
-        self._arm_session = ort.InferenceSession(arm_policy_file_name)
+        self._stand_config = stand_config
+        self._walk_config = walk_config
+        self._stand_session = ort.InferenceSession(stand_policy_file_name)
+        self._walk_session = ort.InferenceSession(walk_policy_file_name)
 
         self._last_action = [0] * 19
-        self._body_last_action = [0] * 19
-        self._arm_last_action = [0] * 19
-
         self._shifted_action = [0] * 19
 
-        self._body_dof = 12
-        self._arm_dof = 7
-        self._total_dof = 19
+        self._policy_mode = None
 
         # own variable for logging
         self._log_file = open("/home/spot/spot-rl-deployment/spot-rl-example/python/log/observation_log.txt")
@@ -118,53 +113,44 @@ class OnnxDualCommandGenerator:
             self._init_pos = self._context.latest_state.joint_states.position
             self._init_load = self._context.latest_state.joint_states.load
 
-        #TODO: Find out what policy wants. Its own latest action or the one sent to the robot.
 
-        body_input_list, arm_input_list = self.collect_dual_inputs(self._context.latest_state, self._body_config, self._arm_config, self._body_last_action, self._arm_last_action)
+        # extract observation data from latest spot state data
+        # chosen config should no matter since init state should be the same
+        input_list = self.collect_inputs(self._context.latest_state, self._walk_config)
         
-        body_input = [np.array(body_input_list).astype("float32")]
-        body_output = self._body_session.run(None, {"obs": body_input})[0].tolist()[0]
-        body_shifted_output = self.postprocess_output(body_output, self._body_config)
+        # execute model from onnx file
+        input = [np.array(input_list).astype("float32")]
+        
+        #Check conditions for policy
+        self._policy_mode = self.choose_policy_mode(input_list[9:12], input_list[0:3], input_list[3:6])
+        if self._policy_mode == "standing":
+            config = self._stand_config
+            output = self._stand_session.run(None, {"obs": input})[0].tolist()[0]
 
-        arm_input = [np.array(arm_input_list).astype("float32")]
-        arm_output = self._arm_session.run(None, {"obs": arm_input})[0].tolist()[0]
-        arm_shifted_output = self.postprocess_output(arm_output, self._arm_config)
+        elif self._policy_mode == "walking":
+            config = self._walk_config
+            output = self._walk_session.run(None, {"obs": input})[0].tolist()[0]
+        else:
+            raise ValueError("_policy_mode is neither 'walking' or 'standing'")
 
-        """
-        #Body
-        body_input_list = self.collect_inputs(self._context.latest_state, self._body_config, self._body_last_action)
-        body_input = [np.array(body_input_list).astype("float32")]
-        body_output = self._body_session.run(None, {"obs": body_input})[0].tolist()[0]
+        #apply action scaling and offset to output
+        shifted_output = self.scale_and_shift_output(output, config)
         
-        body_shifted_output = self.postprocess_output(body_output, self._body_config)
-        
-        #Arm
-        arm_input_list = self.collect_inputs(self._context.latest_state, self._arm_config, self._arm_last_action)
-        arm_input = [np.array(arm_input_list).astype("float32")]
-        arm_output = self._arm_session.run(None, {"obs": arm_input})[0].tolist()[0]
-        
-        arm_shifted_output = self.postprocess_output(arm_output, self._arm_config)
-        """
-        #Merge
-        merged_shifted_output = self.merge_policy_output(body_shifted_output, arm_shifted_output)
-        
-        #Reorder
         orbit_to_spot = find_ordering(ordered_joint_names_orbit, ordered_joint_names_bosdyn)
-        merged_reordered_output = reorder(merged_shifted_output, orbit_to_spot)
+        reordered_output = reorder(shifted_output, orbit_to_spot)
 
-        #Create proto msg
-        proto = self.create_proto_dual(merged_reordered_output, self._body_config, self._arm_config)
+        #Create proto message from target joint positions
+        proto = self.create_proto(reordered_output, config)
 
-        
-        self._body_last_action = body_output
-        self._arm_last_action = arm_output
-        self._shifted_action = merged_shifted_output
+        #cache data for history and logging
+        self._last_action = output
+        self._shifted_action = shifted_output
         self._count += 1
         self._context.count += 1
 
         return proto
 
-    def collect_inputs(self, state: JointControlStreamRequest, config: OrbitConfig, last_action: List[float]):
+    def collect_inputs(self, state: JointControlStreamRequest, config: OrbitConfig):
         """extract observation data from spots current state and format for onnx
 
         arguments
@@ -180,7 +166,7 @@ class OnnxDualCommandGenerator:
         observations += self._context.velocity_cmd
         observations += ob.get_joint_positions(state, config)
         observations += ob.get_joint_velocity(state)
-        observations += last_action
+        observations += self._last_action
         
         if self.verbose and self._count%25==0:
             print_observations(observations)
@@ -188,57 +174,13 @@ class OnnxDualCommandGenerator:
             self.log_observations_to_file(observations)
 
         return observations
-    
-    def collect_dual_inputs(self, state: JointControlStreamRequest, body_config: OrbitConfig, arm_config: OrbitConfig, body_action: List[float], arm_action: List[float]):
-        """extract observation data from spots current state and format for onnx
 
-        arguments
-        state -- proto msg with spots latest state
-        config -- model configuration data from orbit
-
-        return two list of float values ready to be passed into the corresponding model
-        """
-        body_observations = []
-        arm_observations = []
-
-        base_lin_vel = ob.get_base_linear_velocity(state)
-        base_ang_vel = ob.get_base_angular_velocity(state)
-        projected_gravity = ob.get_projected_gravity(state)
-        commanded_vel = self._context.velocity_cmd
-        joint_vel = ob.get_joint_velocity(state)
-
-        body_observations += base_lin_vel
-        body_observations += base_ang_vel
-        body_observations += projected_gravity
-        body_observations += commanded_vel
-        body_observations += ob.get_joint_positions(state, body_config)
-        body_observations += joint_vel
-        body_observations += body_action
-
-        arm_observations += base_lin_vel
-        arm_observations += base_ang_vel
-        arm_observations += projected_gravity
-        arm_observations += commanded_vel
-        arm_observations += ob.get_joint_positions(state, arm_config)
-        arm_observations += joint_vel
-        arm_observations += arm_action
-
-        if self.verbose and self._count%25==0:
-            print_observations(body_observations)
-            print(arm_observations)
-            #print("[INFO] cmd", self._context.velocity_cmd)
-            #self.log_observations_to_file(observations)
-        return body_observations, arm_observations
-
-
-
-    def create_proto_dual(self, pos_command: List[float], body_config: OrbitConfig, arm_config: OrbitConfig):
+    def create_proto(self, pos_command: List[float], config: OrbitConfig):
         """generate a proto msg for spot with a given pos_command for dual policy
 
         arguments
         pos_command -- list of joint positions see spot.constants for order
-        body_config -- config for body policy
-        arm_config -- config for arm policy
+        config -- config for policy
 
         return proto message to send in spots command stream
         """
@@ -246,14 +188,8 @@ class OnnxDualCommandGenerator:
         set_timestamp_from_now(update_proto.header.request_timestamp)
         update_proto.header.client_name = "rl_example_client"
 
-        body_kp = dict_to_list(body_config.kp, ordered_joint_names_bosdyn)
-        body_kd = dict_to_list(body_config.kd, ordered_joint_names_bosdyn)
-
-        arm_kp = dict_to_list(arm_config.kp, ordered_joint_names_bosdyn)
-        arm_kd = dict_to_list(arm_config.kd, ordered_joint_names_bosdyn)
-
-        k_q_p = body_kp[:self._body_dof] + arm_kp[self._body_dof:]
-        k_qd_p = body_kd[:self._body_dof] + arm_kd[self._body_dof:]
+        k_q_p = dict_to_list(config.kp, ordered_joint_names_bosdyn)
+        k_qd_p = dict_to_list(config.kd, ordered_joint_names_bosdyn)
 
         N_DOF = len(pos_command)
         pos_cmd = [0] * N_DOF
@@ -285,8 +221,8 @@ class OnnxDualCommandGenerator:
         update_proto.joint_command.user_command_key = self._count
         return update_proto
 
-    #TODO: The logging must be fixed, cant simply log last action with dual policy
-    def log_observations_to_file(self, observations: List[float], body_action: List[float], arm_action: List[float]):
+    #TODO: should we log what policy we are using
+    def log_observations_to_file(self, observations: List[float]):
         """feature to log observations into text file.
         
         arguments
@@ -299,9 +235,7 @@ class OnnxDualCommandGenerator:
             f"commanded_vel: {observations[9:12]}",
             f"joint_positions: {observations[12:31]}",
             f"joint_velocity: {observations[31:50]}",
-            #f"last_action: {observations[50:69]}",
-            f"body_action: {body_action}",
-            f"arm_action: {arm_action}",
+            f"last_action: {observations[50:69]}",
             f"shifted_action: {self._shifted_action}"
         ]
 
@@ -316,7 +250,7 @@ class OnnxDualCommandGenerator:
             self._log_file.close()
 
         
-    def postprocess_output(self, output: List[float], config: OrbitConfig) -> List[float]:
+    def scale_and_shift_output(self, output: List[float], config: OrbitConfig) -> List[float]:
         """Apply action scale and default joint offset to output."""
         test_scale = min(0.1 * self._count, 1)
 
@@ -328,10 +262,46 @@ class OnnxDualCommandGenerator:
 
         return shifted_output
     
-    def merge_policy_output(self, body_output: List[float], arm_output: List[float]) -> List[float]:
-        """Merge two 19-DOF Orbit-order outputs.
+    def choose_policy_mode(self, cmd_vel: List[float], base_lin_vel: List[float], base_ang_vel):
+        """Helper function for choosing which policy to use, standing or walking.
+        
+        input
+        cmd_vel - commanded velocity
+        base_lin_vel - robot base velocity
+        base_ang_vel
 
-        First 12 joints come from body policy.
-        Last 7 joints come from arm policy.
+        return policy mode
+
         """
-        return body_output[:self._body_dof] + arm_output[self._body_dof:]
+        cmd_norm = np.linalg.norm(cmd_vel)
+        base_lin_norm = np.linalg.norm(base_lin_vel)
+        base_ang_norm = np.linalg.norm(base_ang_vel)
+
+        if base_lin_norm > 1  and cmd_norm < 1:
+            print(f"base_speed is to high {base_lin_vel} while cmd is below threshold {cmd_vel}, can't use standing")
+        
+        can_use_standing = (
+            cmd_norm < 1
+            and base_lin_norm < 1
+            and base_ang_norm < 1
+        )
+
+        must_use_walking = (
+            cmd_norm > 1
+            or base_lin_norm > 1
+            or base_ang_norm > 1
+        )
+
+        mode_to_use = None
+        if must_use_walking:
+            mode_to_use = "walking"
+        elif can_use_standing:
+            mode_to_use = "standing"
+        else:
+            mode_to_use = "walking"
+
+        if self._policy_mode != mode_to_use:
+            print(f"Switching policy mode. Currently using {self._policy_mode}, now switching to {mode_to_use}")
+        
+        self._policy_mode = mode_to_use
+        return mode_to_use
