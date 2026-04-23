@@ -38,11 +38,18 @@ JOINT_GROUPS = {
     "Arm joints": ["a0_sh0", "a0_sh1", "a0_el0", "a0_el1", "a0_wr0", "a0_wr1", "a0_f1x"]
 }
 
+# JOINT_COLOR_MAP = {
+#     "fl_hx": "tab:blue",   "fl_hy": "tab:cyan",   "fl_kn": "tab:purple",
+#     "fr_hx": "tab:orange", "fr_hy": "tab:brown",  "fr_kn": "tab:pink",
+#     "hl_hx": "tab:green",  "hl_hy": "tab:olive",  "hl_kn": "tab:gray",
+#     "hr_hx": "tab:red",    "hr_hy": "tab:blue",   "hr_kn": "tab:orange",
+#     "a0_sh0": "tab:blue", "a0_sh1": "tab:orange", "a0_el0": "tab:green", "a0_el1": "tab:red", "a0_wr0": "tab:purple", "a0_wr1": "tab:brown", "a0_f1x": "tab:pink",
+# }
 JOINT_COLOR_MAP = {
-    "fl_hx": "tab:blue",   "fl_hy": "tab:cyan",   "fl_kn": "tab:purple",
-    "fr_hx": "tab:orange", "fr_hy": "tab:brown",  "fr_kn": "tab:pink",
-    "hl_hx": "tab:green",  "hl_hy": "tab:olive",  "hl_kn": "tab:gray",
-    "hr_hx": "tab:red",    "hr_hy": "tab:blue",   "hr_kn": "tab:orange",
+    "fl_hx": "tab:blue",    "fl_hy": "tab:red",   "fl_kn": "tab:green",
+    "fr_hx": "tab:blue",    "fr_hy": "tab:red",   "fr_kn": "tab:green",
+    "hl_hx": "tab:blue",    "hl_hy": "tab:red",   "hl_kn": "tab:green",
+    "hr_hx": "tab:blue",    "hr_hy": "tab:red",   "hr_kn": "tab:green",
     "a0_sh0": "tab:blue", "a0_sh1": "tab:orange", "a0_el0": "tab:green", "a0_el1": "tab:red", "a0_wr0": "tab:purple", "a0_wr1": "tab:brown", "a0_f1x": "tab:pink",
 }
 
@@ -72,7 +79,7 @@ def load_data(filename):
             key = line[:bracket_index].strip()
             vector_str = line[bracket_index:].strip()
             if key not in REQUIRED_KEYS:
-                print(f"Key: '{key}' not required, skipping.")
+                #print(f"Key: '{key}' not required, skipping.")
                 continue
 
             # Convert string to actual list
@@ -150,15 +157,17 @@ def plot_joint_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action
             linestyle="--",
             linewidth=2,
         )
-        ax.axhline(
+        ax.hlines(
             y=DEFAULT_JOINT_POSITION[idx],
+            xmin=0,
+            xmax=max(x),
             color=color,
             linestyle=":",
             linewidth=2,
         )
 
     ax.set_ylabel("Joint angle [rad]")
-    ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action)")
+    ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action, Dotted - Default)")
     ax.grid(True)
     ax.legend(fontsize=8, ncol=1, loc="upper left")
 
@@ -202,7 +211,7 @@ def plot_all_groups(data):
     x = np.arange(joint_pos.shape[0])
 
     for group_name, joint_names in JOINT_GROUPS.items():
-        fig, (joint_ax, vel_ax) = plt.subplots(2, 1, figsize=(13, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
+        fig, (joint_ax, vel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
         plot_joint_subplot(joint_ax, x, joint_names, group_name, joint_pos, shifted_action)
         plot_vel_subplot(vel_ax, x, base_vel, cmd_vel)
         plt.tight_layout()

@@ -318,6 +318,48 @@ class OnnxCommandGenerator:
         update_proto.joint_command.user_command_key = self._count
         return update_proto
     
+    def create_proto_fixed(self):
+        """generate a proto msg that holds spots at a fixed pose
+
+        return proto message to send in spots command stream
+        """
+        update_proto = robot_command_pb2.JointControlStreamRequest()
+        update_proto.Clear()
+        set_timestamp_from_now(update_proto.header.request_timestamp)
+        update_proto.header.client_name = "rl_example_client"
+
+        N_DOF = 19 #OG 12 CHANGED TO 19 TO INCLUDE ARM
+
+        k_q_p = DEFAULT_K_Q_P[0:N_DOF] # 
+        k_qd_p = DEFAULT_K_QD_P[0:N_DOF] #
+
+        pos_cmd = []
+        
+        #pos_cmd = [0] * N_DOF
+        vel_cmd = [0] * N_DOF
+        load_cmd = [0] * N_DOF
+
+        # Fill in gains the first dt
+        if self._count == 1:
+            update_proto.joint_command.gains.k_q_p.extend(k_q_p)
+            update_proto.joint_command.gains.k_qd_p.extend(k_qd_p)
+
+        update_proto.joint_command.position.extend(pos_cmd)
+        update_proto.joint_command.velocity.extend(vel_cmd)
+        update_proto.joint_command.load.extend(load_cmd)
+
+        observation_time = self._context.latest_state.joint_states.acquisition_timestamp
+        end_time = seconds_to_timestamp(timestamp_to_sec(observation_time) + 0.1)
+        update_proto.joint_command.end_time.CopyFrom(end_time)
+
+        # Let it extrapolate the command a little
+        update_proto.joint_command.extrapolation_duration.nanos = int(5 * 1e6)
+
+        # Set user key for latency tracking
+        update_proto.joint_command.user_command_key = self._count
+        return update_proto
+
+    
     def log_observations_to_file(self, observations: List[float]):
         """feature to log observations into text file.
         
