@@ -1,0 +1,117 @@
+@configclass
+class SpotCommandsFineTuneCfg(SpotCommandsCfg):
+    """Command distribution for flat-ground fine-tuning.
+
+    Biases training toward:
+    - more true zero-command standing samples
+    - faster command refreshes so direction reversals happen more often
+    - symmetric velocity ranges so switching forward/backward is treated evenly
+    """
+
+    base_velocity = mdp.UniformVelocityCommandCfg(
+        asset_name="robot",
+        resampling_time_range=(1.5, 3.0),
+        rel_standing_envs=0.50,
+        rel_heading_envs=0.0,
+        heading_command=False,
+        debug_vis=True,
+        ranges=mdp.UniformVelocityCommandCfg.Ranges(
+            lin_vel_x=(-2.0, 2.0),
+            lin_vel_y=(-1.5, 1.5),
+            ang_vel_z=(-1.25, 1.25),
+        ),
+    )
+
+
+@configclass
+class SpotRewardsFineTuneCfg(SpotRewardsCfg):
+    """Reward shaping tuned for stand-still behavior and cleaner reversals."""
+
+    base_angular_velocity = RewTerm(
+        func=spot_mdp.base_angular_velocity_reward,
+        weight=6.0,
+        params={"std": 0.5, "asset_cfg": SceneEntityCfg("robot")},
+    )
+    base_linear_velocity = RewTerm(
+        func=spot_mdp.base_linear_velocity_reward,
+        weight=12.0,
+        params={"std": 0.35, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")},
+    )
+    action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-1.5)
+    base_orientation = RewTerm(
+        func=spot_mdp.base_orientation_penalty, weight=-4.0, params={"asset_cfg": SceneEntityCfg("robot")}
+    )
+    foot_slip = RewTerm(
+        func=spot_mdp.foot_slip_penalty,
+        weight=-0.8,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+            "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+            "threshold": 0.75,
+        },
+    )
+    joint_pos = RewTerm(
+        func=spot_mdp.joint_position_penalty,
+        weight=-0.9,
+        params={
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+            "stand_still_scale": 10.0,
+            "velocity_threshold": 0.2,
+        },
+    )
+    stand_base_motion = RewTerm(
+        func=mdp.base_motion_stand_penalty,
+        weight=-10.0,
+        params={
+            "asset_cfg": SceneEntityCfg("robot"),
+            "command_name": "base_velocity",
+            "cmd_threshold": 0.12,
+            "lin_scale": 1.0,
+            "ang_scale": 0.5,
+        },
+    )
+    stand_still = RewTerm(
+        func=vel_mdp.stand_still_joint_deviation_l1,
+        weight=-2.0*3.5,
+        params={
+            "command_name": "base_velocity",
+            "command_threshold": 0.18,
+            "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+        },
+    )
+
+@configclass
+class SpotLocomotionEnvCfg_FineTune(SpotLocomotionEnvCfg):
+    """Flat-ground locomotion fine-tuning setup for stability and clean stops."""
+
+    commands: SpotCommandsFineTuneCfg = SpotCommandsFineTuneCfg()
+    rewards: SpotRewardsFineTuneCfg = SpotRewardsFineTuneCfg()
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        # Fine-tuning benefits from longer rollouts on a simple surface.
+        self.episode_length_s = 25.0
+
+        # Focus on flat-ground command tracking and stable stops.
+        self.scene.terrain.terrain_type = "plane"
+        self.scene.terrain.terrain_generator = None
+        self.scene.terrain.max_init_terrain_level = None
+        self.curriculum.terrain_levels = None
+
+        # Keep startup randomization for robustness, but remove recurrent disturbances.
+        self.events.push_robot = None
+        self.events.base_external_force_torque = None
+
+
+@configclass
+class SpotLocomotionEnvCfg_FineTune_Play(SpotLocomotionEnvCfg_FineTune):
+    """Play variant for the flat fine-tuning locomotion setup."""
+
+    def __post_init__(self) -> None:
+        super().__post_init__()
+
+        self.scene.num_envs = 50
+        self.scene.env_spacing = 2.5
+        self.observations.policy.enable_corruption = False
+

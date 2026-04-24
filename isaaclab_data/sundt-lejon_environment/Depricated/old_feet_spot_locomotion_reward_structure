@@ -1,0 +1,245 @@
+
+
+# @configclass
+# class SpotRewardsCfg:
+#     # -- task defining, aim to match the angular and linear velocity with the commanded velocity.
+#     base_angular_velocity = RewTerm(
+#         func=spot_mdp.base_angular_velocity_reward,
+#         weight=6.0,
+#         params={"std": 0.8, "asset_cfg": SceneEntityCfg("robot")}, #std = 2.0 before 
+#     )
+#     base_linear_velocity = RewTerm(
+#         func=spot_mdp.base_linear_velocity_reward,
+#         weight=8.5,
+#         params={"std": 0.5, "ramp_rate": 0.5, "ramp_at_vel": 1.0, "asset_cfg": SceneEntityCfg("robot")}, # std = 1.0 before
+#     )
+
+#     stand_feet_contact = RewTerm(
+#         func=mdp.feet_contact_count_reward,
+#         weight=1.0,
+#         params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot")},
+#     )
+
+#     # -- shaping, reward the robot heavily for keeping a good gait behaviour. This is importatnt to make sure the robot picks up a
+#     # stable and sensible way of walking trough the world.
+#     gait = RewTerm(
+#         func=mdp.StandGatedGaitReward,
+#         weight=12.0, #og 12 to reward keeping a good gate
+#         params={
+#             "std": 0.1,
+#             "max_err": 0.2,
+#             "velocity_threshold": 0.4,
+#             # Diagonal pairs for trot timing sync/anti-sync checks.
+#             "synced_feet_pair_names": (("fl_foot", "hr_foot"), ("fr_foot", "hl_foot")),
+#             "asset_cfg": SceneEntityCfg("robot"),
+#             # GAIT_CHANGE: each lower leg uses its own filtered contact sensor.
+#             "sensor_cfgs": [
+#                 SceneEntityCfg("contact_fl_foot"),
+#                 SceneEntityCfg("contact_fr_foot"),
+#                 SceneEntityCfg("contact_hl_foot"),
+#                 SceneEntityCfg("contact_hr_foot"),
+#             ],
+#         },
+#     )
+
+#     foot_clearance = RewTerm(
+#         func=spot_mdp.foot_clearance_reward,
+#         weight=0.5,
+#         params={
+#             "std": 0.05,
+#             "tanh_mult": 2.0,
+#             "target_height": 0.1,
+#             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+#         },
+#     )
+
+#     # --shaping, similarly to the gait, it is desirable for the robot to be rewarded for taking longer steps.
+#     air_time = RewTerm(
+#         func=mdp.stand_gated_air_time_reward,
+#         weight=6.0, #og 5
+#         params={
+#             "mode_time": 0.3,
+#             "velocity_threshold": 0.3,
+#             "asset_cfg": SceneEntityCfg("robot"),
+#             "sensor_cfgs": [
+#                 SceneEntityCfg("contact_fl_foot"),
+#                 SceneEntityCfg("contact_fr_foot"),
+#                 SceneEntityCfg("contact_hl_foot"),
+#                 SceneEntityCfg("contact_hr_foot"),
+#             ],
+#         },
+#     )
+#     # --shaping, rewards steady contact with the foot, to keep the robot balanced and on the feet
+#     # foot_zone_contact = RewTerm(
+#     #     func=mdp.feet_in_foot_zone_reward,
+#     #     weight=0.5,
+#     #     params={
+#     #         "sensor_cfgs": [
+#     #             SceneEntityCfg("contact_fl_lleg"),
+#     #             SceneEntityCfg("contact_fr_lleg"),
+#     #             SceneEntityCfg("contact_hl_lleg"),
+#     #             SceneEntityCfg("contact_hr_lleg"),
+#     #         ],
+#     #         "force_threshold": 5.0, # Make sure to check if these values make sense
+#     #         "foot_z_max": -0.28,
+#     #         "foot_xy_radius": 0.06,
+#     #     },
+#     # )
+
+#     #-- shaping to reward the agent for staying alive longer.
+#     keep_alive = RewTerm(
+#         func= mdp.is_alive,
+#         weight= 4.0,
+#     )
+
+#     keep_alive_ramp = RewTerm(
+#         func = mdp.is_alive_ramp,
+#         weight=0.75,
+#         params={"base_value": 0.0, "growth_per_second": 0.01, "max_value": 0.4},
+#     )
+
+
+#     #mdp.base_height_l2
+
+#     # -- penalties
+
+#     stand_height_error = RewTerm(
+#         func=mdp.base_height_error_penalty,
+#         weight=-3.0,
+#         params={"asset_cfg": SceneEntityCfg("robot"), "target_height": 0.55},
+#     )
+
+#     stand_xy_drift = RewTerm(
+#         func=mdp.base_xy_position_drift_penalty,
+#         weight=-1.0,
+#         params={"asset_cfg": SceneEntityCfg("robot")},
+#     )
+#     stand_yaw_drift = RewTerm(
+#         func=mdp.yaw_drift_penalty,
+#         weight=-0.5,
+#         params={"asset_cfg": SceneEntityCfg("robot"), "desired_yaw": 0.0},
+#     )
+
+#     #Codex did this
+#     # lleg_non_foot_contact = RewTerm(
+#     #     func=mdp.lleg_non_foot_contact_penalty,
+#     #     weight=-4.0,
+#     #     params={
+#     #         "sensor_cfgs": [
+#     #             SceneEntityCfg("contact_fl_lleg"),
+#     #             SceneEntityCfg("contact_fr_lleg"),
+#     #             SceneEntityCfg("contact_hl_lleg"),
+#     #             SceneEntityCfg("contact_hr_lleg"),
+#     #         ],
+#     #         "force_threshold": 5.0,
+#     #         "foot_z_max": -0.28,
+#     #         "foot_xy_radius": 0.06,
+#     #     },
+#     # )
+
+#     terminating = RewTerm(func=mdp.is_terminated,weight=-300.0)
+
+#     action_smoothness = RewTerm(func=spot_mdp.action_smoothness_penalty, weight=-0.1)
+
+#     base_motion = RewTerm(
+#        func=spot_mdp.base_motion_penalty, weight=-2.0, params={"asset_cfg": SceneEntityCfg("robot")}
+#     )
+#     base_orientation = RewTerm(
+#         func=spot_mdp.base_orientation_penalty, weight=-3.0, params={"asset_cfg": SceneEntityCfg("robot")}
+#     )
+
+#     foot_slip = RewTerm(
+#         func=spot_mdp.foot_slip_penalty,
+#         weight=-0.3,
+#         params={
+#             "asset_cfg": SceneEntityCfg("robot", body_names=".*_foot"),
+#             "sensor_cfg": SceneEntityCfg("contact_forces", body_names=".*_foot"),
+#             "threshold": 1.0,
+#         },
+#     )
+
+#     joint_pos = RewTerm(
+#         func=spot_mdp.joint_position_penalty,
+#         weight=-0.2,
+#         params={
+#             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+#             "stand_still_scale": 5.0,
+#             "velocity_threshold": 0.10,
+#         },
+#     )
+
+#     joint_torques = RewTerm(
+#         func=spot_mdp.joint_torques_penalty,
+#         weight=-5.0e-4,
+#         params={"asset_cfg": SceneEntityCfg("robot", joint_names=".*")},
+#     )
+    
+#     joint_vel = RewTerm(
+#         func=mdp.joint_velocity_penalty,
+#         weight=-5.0e-3,
+#         params={
+#             "asset_cfg": SceneEntityCfg(
+#                 "robot",
+#                 joint_names=[
+#                     ".*_h[xy]",
+#                     "arm0_sh1",
+#                     "arm0_el0",
+#                     "arm0_el1",
+#                     "arm0_sh0",
+#                     "arm0_wr0",
+#                     "arm0_wr1",
+#                     "arm0_f1x",
+#                 ],
+#             ),
+#         },
+#     )
+
+#     # arm position in stow state
+#     joint_deviation_arm = RewTerm(
+#         func=mdp.joint_deviation_l1,
+#         weight= -7.0,
+#         params={
+#             "asset_cfg": SceneEntityCfg(
+#                 "robot",
+#                 joint_names=[
+#                     "arm0_sh1",
+#                     "arm0_el0",
+#                     "arm0_el1",
+#                     "arm0_sh0",
+#                     "arm0_wr0",
+#                     "arm0_wr1",
+#                     "arm0_f1x",
+#                 ],
+#             )
+#         },
+#     )
+
+#     joint_acc = RewTerm(
+#         func=spot_mdp.joint_acceleration_penalty,
+#         weight=-1.0e-5,
+#         params={
+#             "asset_cfg": SceneEntityCfg(
+#                 "robot",
+#                 joint_names=[
+#                     ".*_h[xy]",
+#                     "arm0_sh1",
+#                     "arm0_el0",
+#                     "arm0_el1",
+#                     "arm0_sh0",
+#                     "arm0_wr0",
+#                     "arm0_wr1",
+#                     "arm0_f1x",
+#                 ],
+#             )
+#         },
+#     )
+
+#     stand_still = RewTerm(
+#         func=vel_mdp.stand_still_joint_deviation_l1,
+#         weight=-0.8,
+#         params={
+#             "command_name": "base_velocity",
+#             "asset_cfg": SceneEntityCfg("robot", joint_names=".*"),
+#         },
+#     )
+    
