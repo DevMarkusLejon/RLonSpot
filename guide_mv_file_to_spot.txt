@@ -1,26 +1,31 @@
-Move file from pc to spot
+Guide to move files between PC and Jetson mounted on Spot.
 
-Move the env.yaml and policy.onnx out of bokertov
-Move the files from pc to Jetson with scp -P 20022 -r Path/to/folder/* spot@192.168.80.3:<path_to_copy_files> i created a dir labpol
-Connect to Jetson. ssh -p 20022 spot@192.168.80.3 , pswd: spot
-cd ~/spot-rl-deployment/spot-rl-example/python/utils/
-python3 env_converter.py
-Enter: /home/spot/<path_to_folder>
-cd to folder with policy files
-mv env_cfg.json policy.onnx ~/spot-rl-deployment/models
-cd ~/spot-rl-deployment/spot-rl-example/python
+- Move policy file from Bokertov to PC and then to Jetson mounted on Spot and convert the env file
+1. Move the env.yaml and policy.onnx from Bokertov to PC
+2. Move the files from PC to Jetson with the following command:
+    scp -P 20022 -r <local_dir>/* spot@192.168.80.3:<remote_path> 
+    There is a dir named labpol to place policy files in:/home/spot/labpol/
+3. Connect to Jetson, pwd: spot 
+    ssh -p 20022 spot@192.168.80.3
+4. Navigate to directory and convert env file from .yaml to .json
+    cd ~/spot-rl-deployment/spot-rl-example/python/utils/
+    python3 env_converter.py
+    Enter: /home/spot/labpol/<path_to_folder>
+5. Move files from labpol into models
+    cd ~/labpol/<folder_name>
+    mv ~/labpol/env_cfg.json ~/labpol/policy.onnx ~/spot-rl-deployment/models/<folder_name>
+6. Navigate to deployment code
+    cd ~/spot-rl-deployment/spot-rl-example/python
 
+- Run rl policy on Spot
+1. Navigate to deployment code directory
+    cd ~/spot-rl-deployment/spot-rl-example/python
+2. Run <spot_ip>=192.168.80.3
+    python3 spot_rl_demo.py <spot_ip> ~/spot-rl-deployment/models/<folder_name> --gamepad-config ./gamepad_config.json
+    Use the flag -m / --mock to use spot_mock intead of spot
+    Use the flag -v for verbose
 
-Run policy on spot
-
-
-cd ~/spot-rl-deployment/spot-rl-example/python
-
-python3 spot_rl_demo.py <spot_ip> ~/spot-rl-deployment/models/<path_to_dir> --gamepad-config ./gamepad_config.json
-
--m or --mock as argument to use spot_mock instead of real spot
-
-
-Move log file from Jetson to PC.
-From host pc:
-scp -P 20022 spot@192.168.80.3:~/spot-rl-deployment/spot-rl-example/python/logs/<log_file.txt> <path_to_copy_files_to>
+- Move log file from Jetson to PC.
+1. From host PC run: <local_dir> could be . to save them in the current dir
+    scp -P 20022 spot@192.168.80.3:~/spot-rl-deployment/spot-rl-example/python/logs/<log_file.txt> <local_dir>
+    
