@@ -2,22 +2,37 @@ import ast
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-
+from pathlib import Path
+#fl_hx, fr_hx, hl_hx, hr_hx, fl_hy, fr_hy, hl_hy, hr_hy, fl_kn, fr_kn, hl_kn, hr_kn
 DEFAULT_JOINT_POSITION = np.array([
     0.1, -0.1, 0.1, -0.1, 
     0.9, 0.9, 1.1, 1.1,
     -1.5, -1.5, -1.5, -1.5,
     0, -3.14, 3.14, 1.56, 0, -1.56, 0 
 ])
+UPPER_JOINT_BOUND = np.array([
+    0.79, 0.79, 0.79, 0.79,
+    2.3, 2.3, 2.3, 2.3,
+    -0.25, -0.25, -0.25, -0.25,
+    3.14, 0.52, 3.14, 2.79, 1.83, 2.88, 0
+])
+LOWER_JOINT_BOUND = np.array([
+    -0.79, -0.79, -0.79, -0.79,
+    -0.9, -0.9, -0.9, -0.9,
+    -2.79, -2.79, -2.79, -2.79,
+    -2.62, -3.14, 0, -2.79, -1.83, -2.88, -1.57
+])
 
 REQUIRED_KEYS = [
     "joint_positions:",
+    "joint_velocity:",
     "shifted_action:",
     "base_linear_velocity:",
     "commanded_vel:"
 ]
 EXPECTED_VECTOR_LENGHT = {
     "joint_positions:": 19,
+    "joint_velocity:": 19,
     "shifted_action:": 19,
     "base_linear_velocity:": 3,
     "commanded_vel:": 3
@@ -36,7 +51,7 @@ JOINT_GROUPS = {
     "FR": ["fr_hx", "fr_hy", "fr_kn"],
     "HL": ["hl_hx", "hl_hy", "hl_kn"],
     "HR": ["hr_hx", "hr_hy", "hr_kn"],
-    "Arm joints": ["a0_sh0", "a0_sh1", "a0_el0", "a0_el1", "a0_wr0", "a0_wr1", "a0_f1x"]
+    "Arm": ["a0_sh0", "a0_sh1", "a0_el0", "a0_el1", "a0_wr0", "a0_wr1", "a0_f1x"]
 }
 
 # JOINT_COLOR_MAP = {
@@ -137,8 +152,8 @@ def print_summary(data):
 
 
 # ----- PLOTTING -----
-def plot_joint_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action):
-    """Plot one joint group on ax."""
+def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action):
+    """Plot joint pos groupwise on ax."""
     for joint in joint_names:
         idx = JOINT_LABEL_TO_IDX[joint]
         color = JOINT_COLOR_MAP[joint]
@@ -166,14 +181,50 @@ def plot_joint_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action
             linestyle=":",
             linewidth=2,
         )
+        ax.hlines(
+            y=[ UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
+            xmin=0,
+            xmax=max(x),
+            color=color,
+            linestyle="-.",
+            linewidth=2,
+        )
 
     ax.set_ylabel("Joint angle [rad]")
     ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action, Dotted - Default)")
     ax.grid(True)
     ax.legend(fontsize=8, ncol=1, loc="upper left")
 
+def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel):
+    "Plot joint vel groupwise on ax."
+    for joint in joint_names:
+        idx = JOINT_LABEL_TO_IDX[joint]
+        color = JOINT_COLOR_MAP[joint]
 
-def plot_vel_subplot(ax, x, base_vel, cmd_vel):
+        ax.plot(
+            x,
+            joint_vel[:, idx],
+            color=color,
+            linestyle="-",
+            linewidth=2,
+            label=joint
+        )
+        # ax.plot(
+        #     x,
+        #     shifted_action[:, idx],
+        #     color=color,
+        #     linestyle="--",
+        #     linewidth=2,
+        # )
+
+
+    ax.set_ylabel("Joint vel [rad/s]")
+    ax.set_title(f"{group_name} joint vels. (Solid - Vel)")
+    ax.grid(True)
+    ax.legend(fontsize=8, ncol=1, loc="upper left")
+
+
+def plot_basevel_subplot(ax, x, base_vel, cmd_vel):
     """Plot vel comparison on ax."""
     for i, vel_name in enumerate(VEL_LABELS):
         vel_color = VEL_COLOR_MAP[vel_name] 
@@ -205,26 +256,62 @@ def plot_vel_subplot(ax, x, base_vel, cmd_vel):
 def plot_all_groups(data):
     """Create all group plots."""
     joint_pos = data["joint_positions:"]
+    joint_vel = data["joint_velocity:"]
     shifted_action = data["shifted_action:"]
     base_vel = data["base_linear_velocity:"]
     cmd_vel = data["commanded_vel:"]
 
     x = np.arange(joint_pos.shape[0])
-
+    figures = []
     for group_name, joint_names in JOINT_GROUPS.items():
-        fig, (joint_ax, vel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
-        plot_joint_subplot(joint_ax, x, joint_names, group_name, joint_pos, shifted_action)
-        plot_vel_subplot(vel_ax, x, base_vel, cmd_vel)
+        fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
+        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
+        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
         plt.tight_layout()
-    plt.show()
+        figures.append((f"{group_name}_joint_pos", fig))
+    #plt.show()
+    for group_name, joint_names in JOINT_GROUPS.items():
+        fig, (jointvel_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
+        plot_jointvel_subplot(jointvel_ax, x, joint_names, group_name, joint_vel)
+        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
+        plt.tight_layout()
+        figures.append((f"{group_name}_joint_vel", fig))
+    #plt.show()
+    return figures
+
+
+def figure_saver(figures: list[tuple[str, plt.Figure]], save_path: str, save_dir: str, save_ending: str, dpi: int = 300):
+    base_path = Path(save_path)
+    path = base_path / save_dir
+    if not path.parent.exists():
+        raise FileNotFoundError(f"Parent directory not found: {path.parent}")
+    path.mkdir(exist_ok=True)
+    
+    for name, fig in figures:
+        filename = f"{name}{save_ending}"
+        fig.savefig(path / filename, dpi=dpi, bbox_inches="tight")
+
 
 # ----- MAIN -----
 def main():
+    # Add filepath to file in logs directly?
     filename = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/spot_joint_values.txt"
+    save_path = "/home/sundt/thesis/colcon_ws/src/my_spot_thesis/graph_code/plots_deployment/"
+    save_ending = "_deployment_plot.png"
+    
     data = load_data(filename)
     validate_data(data)
     print_summary(data)
-    plot_all_groups(data)
+    figures = plot_all_groups(data)
+
+    flag = input("Do you want to save the plots? (y/n): ")
+    if flag == "y":
+        save_dir = input("Input the name of the directory inside plots_deployment to save the plots in: ").strip()
+        figure_saver(figures, save_path, save_dir, save_ending)
+
+    plt.show()
+
+
 
 if __name__ == "__main__":
     main()
