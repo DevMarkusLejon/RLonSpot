@@ -348,7 +348,7 @@ def print_jp_sa_values(data, index):
 # ----- MAIN -----
 def main():
     # Add filepath to file in logs directly?
-    filename = "/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
+    filename = "graph_code\spot_joint_values.txt"#"/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
     save_path = "/home/sundt/thesis//my_spot_thesis/graph_code/plots_deployment/"
     save_ending = "_deployment_plot.png"
     
