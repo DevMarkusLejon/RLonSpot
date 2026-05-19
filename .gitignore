@@ -4,3 +4,4 @@
 *.svg
 __pycache__/
 test.py
+spot_joint_values.txt

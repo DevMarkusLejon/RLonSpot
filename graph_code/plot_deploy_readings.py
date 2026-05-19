@@ -24,48 +24,57 @@ LOWER_JOINT_BOUND = np.array([
 ])
 
 REQUIRED_KEYS = [
+    "base_linear_velocity:",
     "joint_positions:",
     "joint_velocity:",
     "shifted_action:",
-    "base_linear_velocity:",
-    "commanded_vel:"
+    "commanded_vel:",
+]
+OPTIONAL_KEYS = [
+    "base_angular_velocity:",
+    "projected_gravity:",
+    "last_action:",
+    "joint_torques:",
 ]
 
 # This is in orbit order
-JOINT_LABELS = ["fl_hx", "fr_hx","hl_hx", "hr_hx", 
-          "fl_hy", "fr_hy", "hl_hy", "hr_hy",
-          "fl_kn", "fr_kn", "hl_kn", "hr_kn",
-          "a0_sh0", "a0_sh1", "a0_el0", "a0_el1", "a0_wr0", "a0_wr1", "a0_f1x",]
+JOINT_LABELS = [
+    "FL_HX", "FR_HX","HL_HX", "HR_HX", 
+    "FL_HY", "FR_HY", "HL_HY", "HR_HY",
+    "FL_KN", "FR_KN", "HL_KN", "HR_KN",
+    "A0_SH0", "A0_SH1", "A0_EL0", "A0_EL1", "A0_WR0", "A0_WR1", "A0_F1X",]
 # label -> idx matching
 JOINT_LABEL_TO_IDX = {label: i for i, label in enumerate(JOINT_LABELS)}
 
 JOINT_GROUPS = {
-    "FL": ["fl_hx", "fl_hy", "fl_kn"],
-    "FR": ["fr_hx", "fr_hy", "fr_kn"],
-    "HL": ["hl_hx", "hl_hy", "hl_kn"],
-    "HR": ["hr_hx", "hr_hy", "hr_kn"],
-    "Arm": ["a0_sh0", "a0_sh1", "a0_el0", "a0_el1", "a0_wr0", "a0_wr1", "a0_f1x"]
+    "FL": ["FL_HX", "FL_HY", "FL_KN"],
+    "FR": ["FR_HX", "FR_HY", "FR_KN"],
+    "HL": ["HL_HX", "HL_HY", "HL_KN"],
+    "HR": ["HR_HX", "HR_HY", "HR_KN"],
+    "Arm": ["A0_SH0", "A0_SH1", "A0_EL0", "A0_EL1", "A0_WR0", "A0_WR1", "A0_F1X"]
 }
 
-# JOINT_COLOR_MAP = {
-#     "fl_hx": "tab:blue",   "fl_hy": "tab:cyan",   "fl_kn": "tab:purple",
-#     "fr_hx": "tab:orange", "fr_hy": "tab:brown",  "fr_kn": "tab:pink",
-#     "hl_hx": "tab:green",  "hl_hy": "tab:olive",  "hl_kn": "tab:gray",
-#     "hr_hx": "tab:red",    "hr_hy": "tab:blue",   "hr_kn": "tab:orange",
-#     "a0_sh0": "tab:blue", "a0_sh1": "tab:orange", "a0_el0": "tab:green", "a0_el1": "tab:red", "a0_wr0": "tab:purple", "a0_wr1": "tab:brown", "a0_f1x": "tab:pink",
-# }
+GROUP_DISPLAY_NAMES = {
+    "FL": "Front Left",
+    "FR": "Front Right",
+    "HL": "Hind Left",
+    "HR": "Hind Right",
+    "Arm": "Arm"
+}
+
+
 JOINT_COLOR_MAP = {
-    "fl_hx": "tab:blue",    "fl_hy": "tab:red",   "fl_kn": "tab:green",
-    "fr_hx": "tab:blue",    "fr_hy": "tab:red",   "fr_kn": "tab:green",
-    "hl_hx": "tab:blue",    "hl_hy": "tab:red",   "hl_kn": "tab:green",
-    "hr_hx": "tab:blue",    "hr_hy": "tab:red",   "hr_kn": "tab:green",
-    "a0_sh0": "tab:blue", "a0_sh1": "tab:orange", "a0_el0": "tab:green", "a0_el1": "tab:red", "a0_wr0": "tab:purple", "a0_wr1": "tab:brown", "a0_f1x": "tab:pink",
+    "FL_HX": "tab:blue",    "FL_HY": "tab:red",   "FL_KN": "tab:green",
+    "FR_HX": "tab:blue",    "FR_HY": "tab:red",   "FR_KN": "tab:green",
+    "HL_HX": "tab:blue",    "HL_HY": "tab:red",   "HL_KN": "tab:green",
+    "HR_HX": "tab:blue",    "HR_HY": "tab:red",   "HR_KN": "tab:green",
+    "A0_SH0": "tab:blue", "A0_SH1": "tab:orange", "A0_EL0": "tab:green", "A0_EL1": "tab:red", "A0_WR0": "tab:purple", "A0_WR1": "tab:brown", "A0_F1X": "tab:pink",
 }
 
-VEL_LABELS = ["X", "Y", "YAW"]
+VEL_LABELS = ["X", "Y", "Yaw"]
 
 VEL_COLOR_MAP = {
-    "X": "tab:green", "Y": "tab:blue", "YAW": "tab:red"
+    "X": "tab:green", "Y": "tab:blue", "Yaw": "tab:red"
 }
 
 # ----- DATA LOADING -----
@@ -87,7 +96,7 @@ def load_data(filename):
             # Split into label and vector string, skip labels that are not required
             key = line[:bracket_index].strip()
             vector_str = line[bracket_index:].strip()
-            if key not in REQUIRED_KEYS:
+            if key not in REQUIRED_KEYS and key not in OPTIONAL_KEYS:
                 #print(f"Key: '{key}' not required, skipping.")
                 continue
 
@@ -113,13 +122,15 @@ def load_data(filename):
 def validate_data(data):
     """Ensure all required signals have the same amount of samples (data points) and the correct dimension."""
     sample_count = {key: data[key].shape[0] for key in REQUIRED_KEYS}
+    for key in REQUIRED_KEYS:
+        if key in data:
+            sample_count[key] = data[key].shape[0]
 
     if len(set(sample_count.values())) != 1:
         error_msg = "Mismatch in number of samples:\n"
         for key, count in sample_count.items():
             error_msg += f"  {key} {count}\n"
         raise ValueError(error_msg)
-
 
 def print_summary(data):
     """Print loaded data."""
@@ -130,24 +141,30 @@ def print_summary(data):
         else:
             print(f"  {key}")
 
+    print("\nOptional keys:")
+    for key in OPTIONAL_KEYS:
+        if key in data:
+            print(f"  {key} (loaded)")
+        else:
+            print(f"  {key} (not found)")
+
     print("\nLoaded keys:")
     for key, arr in data.items():
         print(f"  {key} {arr.shape}")
 
-
 # ----- PLOTTING -----
-def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_legend=True):
+def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_xlabel=True, show_legend=True):
     """Plot joint pos groupwise on ax."""
     for joint in joint_names:
         idx = JOINT_LABEL_TO_IDX[joint]
         color = JOINT_COLOR_MAP[joint]
+        display_name = GROUP_DISPLAY_NAMES[group_name]
 
         ax.plot(
             x,
             joint_pos[:, idx] + DEFAULT_JOINT_POSITION[idx],
             color=color,
             linestyle="-",
-            linewidth=2,
             label=joint
         )
         ax.plot(
@@ -155,7 +172,6 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
             shifted_action[:, idx],
             color=color,
             linestyle="--",
-            linewidth=2,
         )
         # ax.hlines(
         #     y=DEFAULT_JOINT_POSITION[idx],
@@ -163,35 +179,33 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
         #     xmax=max(x),
         #     color=color,
         #     linestyle=":",
-        #     linewidth=2,
         # )
-        ax.hlines(
-            y=[UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
-            xmin=0,
-            xmax=max(x),
-            color=color,
-            linestyle="-.",
-            linewidth=2,
-        )
+        # ax.hlines(
+        #     y=[UPPER_JOINT_BOUND[idx], LOWER_JOINT_BOUND[idx]],
+        #     xmin=0,
+        #     xmax=max(x),
+        #     color=color,
+        #     linestyle="-.",
+        # )
     if show_ylabel:
         ax.set_ylabel("Joint angle [rad]")
+    if show_xlabel:
+        ax.set_xlabel("Timestep at 56 Hz")
     if show_legend:
-        ax.legend(fontsize=8, ncol=1, loc="upper left")
-    ax.set_title(f"{group_name} joints. (Solid - Position, Dashed - Action)")#, Dotted - Default)")
-    ax.grid(True)
+        ax.legend(loc="upper left")
+    ax.set_title(f"{display_name} Joint Positions")# (Solid - Position, Dashed - Action)")#, Dotted - Default)")
 
-def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel=True, show_legend=True):
+def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel=True, show_xlabel=True, show_legend=True):
     "Plot joint vel groupwise on ax."
     for joint in joint_names:
         idx = JOINT_LABEL_TO_IDX[joint]
         color = JOINT_COLOR_MAP[joint]
-
+        display_name = GROUP_DISPLAY_NAMES[group_name]
         ax.plot(
             x,
             joint_vel[:, idx],
             color=color,
             linestyle="-",
-            linewidth=2,
             label=joint
         )
         # ax.plot(
@@ -199,15 +213,15 @@ def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel
         #     shifted_action[:, idx],
         #     color=color,
         #     linestyle="--",
-        #     linewidth=2,
         # )
 
     if show_ylabel:
         ax.set_ylabel("Joint vel [rad/s]")
+    if show_xlabel:
+        ax.set_xlabel("Timestep at 56 Hz")
     if show_legend:
-        ax.legend(fontsize=8, ncol=1, loc="upper left")
-    ax.set_title(f"{group_name} joint vels. (Solid - Vel)")
-    ax.grid(True)
+        ax.legend(loc="upper left")
+    ax.set_title(f"{display_name} Leg Joint Velocities")# (Solid - Vel)")
 
 
 def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
@@ -233,20 +247,90 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
         )
 
     ax.set_xlabel("Timestep at 56 Hz")
-    ax.set_ylabel("Velocity magnitude [m/s] or [rad/s]")
-    ax.set_title("Base linear velocity vs commanded. (Solid - Base, Dashed - Commanded)")
-    ax.grid(True)
+    ax.set_ylabel("Velocity [m/s] or [rad/s]")
+    ax.set_title("Measured vs Commanded Velocity")# (Solid - Base, Dashed - Commanded)")
     if show_legend:
-        ax.legend(fontsize=8, loc="upper left")
+        ax.legend(loc="upper left")
 
+def plot_jointtorque_subplot(ax, x, joint_names, group_name, joint_torque, show_ylabel=True, show_xlabel=True, show_legend=True):
+    """Plot joint torque groupwise on ax."""
+    for joint in joint_names:
+        idx = JOINT_LABEL_TO_IDX[joint]
+        color = JOINT_COLOR_MAP[joint]
+        display_name = GROUP_DISPLAY_NAMES[group_name]
+
+        ax.plot(
+            x,
+            joint_torque[:, idx],
+            color=color,
+            linestyle="-",
+            label=joint
+        )
+
+    if show_ylabel:
+        ax.set_ylabel("Joint torque [Nm]")
+    if show_xlabel:
+        ax.set_xlabel("Timestep at 56 Hz")
+    if show_legend:
+        ax.legend(loc="upper left")
+    ax.set_title(f"{display_name} Joint Torques")#, Dotted - Default)")
 
 def plot_all_groups(data):
+    #print(plt.rcParams) 
+    plt.rcParams.update({ 
+        #Figure 
+        "figure.titlesize": 24, #Title over whole figure 
+        "figure.dpi": 100, 
+        "figure.constrained_layout.use": True, #Automatically adjust spacing between subplots to prevent overlap
+        
+        "figure.constrained_layout.h_pad": 0.1, #Height padding around figure
+        "figure.constrained_layout.w_pad": 0.15, #Width padding around figure
+
+        "figure.constrained_layout.hspace": 0.03, #Height between plots
+        "figure.constrained_layout.wspace": 0.03, #Width between plots
+
+        # #Font 
+        "font.family": "sans-serif", 
+        "font.size": 12, 
+
+        # #Axes 
+        "axes.titlesize": 16, #Title of subplot 
+        "axes.titleweight": "normal", 
+        "axes.labelsize": 14, #x- and ylabel 
+        "axes.linewidth": 1, #Border around subplot 
+
+        # #Tick labels 
+        "xtick.labelsize": 10, 
+        "ytick.labelsize": 10, 
+        
+        #Legend 
+        "legend.fontsize": 10, #legend text size 
+        "legend.frameon": False, #Box around legend
+        "legend.fancybox": True, 
+
+        # #Lines 
+        "lines.linewidth": 1.5, #Thickness of plotted lines
+
+        # #Grid 
+        "axes.grid": False, 
+        "grid.alpha": 0.3,
+        "axes.spines.top": True, 
+        "axes.spines.right": True,
+    })
+
     """Create all group plots."""
+    base_lin_vel = data["base_linear_velocity:"]
+    base_ang_vel = data["base_angular_velocity:"]
+    projected_gravity = data["projected_gravity:"]
+    cmd_vel = data["commanded_vel:"]
     joint_pos = data["joint_positions:"]
     joint_vel = data["joint_velocity:"]
+    last_action = data["last_action:"]
     shifted_action = data["shifted_action:"]
-    base_vel = data["base_linear_velocity:"]
-    cmd_vel = data["commanded_vel:"]
+
+    joint_torques = data.get("joint_torques:")
+
+    base_vel = np.concatenate((base_lin_vel[:, 0:2], base_ang_vel[:, 2:3]), axis=1)
     x = np.arange(joint_pos.shape[0])
     figures = []
 
@@ -256,12 +340,13 @@ def plot_all_groups(data):
         for name, joints in JOINT_GROUPS.items() 
         if all(JOINT_LABEL_TO_IDX[joint] < used_dof for joint in joints) 
     }
+
+
     # Plot joint pos
     for group_name, joint_names in active_joint_groups.items():
         fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
-        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
-        plt.tight_layout()
+        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_xlabel=False, show_legend=True)
+        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
         figures.append((f"{group_name}_joint_pos", fig))
 
     # Plot joint vels
@@ -269,16 +354,26 @@ def plot_all_groups(data):
     #     fig, (jointvel_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
     #     plot_jointvel_subplot(jointvel_ax, x, joint_names, group_name, joint_vel)
     #     plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel)
-    #     plt.tight_layout()
     #     figures.append((f"{group_name}_joint_vel", fig))
     
+    # Plot joint torques with pose and cmd vels
+    # if joint_torques is not None:
+    #     for group_name, joint_names in active_joint_groups.items():
+    #         fig, (jointpos_ax, base_vel_ax, joint_torques_ax) = plt.subplots(3, 1, figsize=(12,8), sharex=True, gridspec_kw={'height_ratios': [2,1,1]})
+    #         plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action)
+    #         plot_basevel_subplot(base_vel_ax, x, base_vel, cmd_vel)
+    #         plot_jointtorque_subplot(joint_torques_ax, x, joint_names, group_name, joint_torques)
+    #         figures.append((f"{group_name}_joint_torque", fig))
+
     # Plot togheter
-    fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"], ["VEL", "VEL"]], figsize=(12,8), sharex=True) 
+    fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
     for group_name in ["FL", "FR", "HL",  "HR"]:
-        plot_jointpos_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_ylabel=(group_name in ["FL", "HL"]), show_legend=(group_name=="FL"))
-    plot_basevel_subplot(mosaic_ax["VEL"], x, base_vel, cmd_vel)
-    plt.tight_layout()
+        plot_jointpos_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_ylabel=False, show_xlabel=False, show_legend=(group_name=="FL"))
+    #plot_basevel_subplot(mosaic_ax["VEL"], x, base_vel, cmd_vel)
+    fig.supxlabel("Timestep at 56 Hz")
+    fig.supylabel("Joint angle [rad]")
     figures.append(("all_joint_pos", fig))
+    
 
     return figures
 
@@ -316,9 +411,9 @@ def print_jp_sa_values(data, index):
 # ----- MAIN -----
 def main():
     # Add filepath to file in logs directly?
-    filename = "graph_code\spot_joint_values.txt"#"/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
-    save_path = "/home/sundt/thesis//my_spot_thesis/graph_code/plots_deployment/"
-    save_ending = "_deployment_plot.png"
+    filename = Path("graph_code") / "spot_joint_values.txt"#"/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
+    save_path = "/home/sundt/thesis/my_spot_thesis/graph_code/plots_deployment/"
+    save_ending = "_deployment_plot.pdf"
     
     data = load_data(filename)
     validate_data(data)

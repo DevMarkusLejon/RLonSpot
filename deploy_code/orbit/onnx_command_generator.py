@@ -189,10 +189,13 @@ class OnnxCommandGenerator:
         observations += ob.get_joint_positions(state, config)[:self._USED_DOF]
         observations += ob.get_joint_velocity(state)[:self._USED_DOF]
         observations += self._last_action[:self._USED_DOF]
-        
+
+        load = ob.get_joint_torques(state)
+
         if self._count % 50 == 0:
             print_observations(observations, self._USED_DOF)
             print(f"shifted_action: {self._shifted_action[:self._USED_DOF]}")
+            print(f"Joint load: {load}")
             #print("[INFO] cmd", self._context.velocity_cmd)
         self.log_observations_txt(observations)
 
