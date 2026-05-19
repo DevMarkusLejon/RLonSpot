@@ -326,7 +326,7 @@ def main():
 
     #jp = np.array(extract_single_count_for_key(data, key="joint_positions:", idx=3000))
     #sa = np.array(extract_single_count_for_key(data, key="shifted_action:", idx=3000))
-    print_jp_sa_values(data, 1000)
+    print_jp_sa_values(data, 100)
     figures = plot_all_groups(data)
 
     flag = input("Do you want to save the plots? (y/n): ")
