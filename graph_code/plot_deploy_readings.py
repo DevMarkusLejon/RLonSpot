@@ -1,5 +1,5 @@
 import ast
-import matplotlib
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 from pathlib import Path
@@ -121,10 +121,12 @@ def load_data(filename):
 
 def validate_data(data):
     """Ensure all required signals have the same amount of samples (data points) and the correct dimension."""
+    missing_keys = [key for key in REQUIRED_KEYS if key not in data]
+    if missing_keys:
+        missing = "\n".join(f"  {key}" for key in missing_keys)
+        raise ValueError(f"Missing required keys:\n{missing}")
+
     sample_count = {key: data[key].shape[0] for key in REQUIRED_KEYS}
-    for key in REQUIRED_KEYS:
-        if key in data:
-            sample_count[key] = data[key].shape[0]
 
     if len(set(sample_count.values())) != 1:
         error_msg = "Mismatch in number of samples:\n"
@@ -226,7 +228,11 @@ def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel
 
 def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     """Plot vel comparison on ax."""
-    for i, vel_name in enumerate(VEL_LABELS):
+    velocity_count = min(base_vel.shape[1], cmd_vel.shape[1], len(VEL_LABELS))
+    if velocity_count == 0:
+        raise ValueError("Velocity plot requires at least one measured and commanded velocity dimension")
+
+    for i, vel_name in enumerate(VEL_LABELS[:velocity_count]):
         vel_color = VEL_COLOR_MAP[vel_name] 
 
         ax.plot(
@@ -320,17 +326,20 @@ def plot_all_groups(data):
 
     """Create all group plots."""
     base_lin_vel = data["base_linear_velocity:"]
-    base_ang_vel = data["base_angular_velocity:"]
-    projected_gravity = data["projected_gravity:"]
+    base_ang_vel = data.get("base_angular_velocity:")
     cmd_vel = data["commanded_vel:"]
     joint_pos = data["joint_positions:"]
-    joint_vel = data["joint_velocity:"]
-    last_action = data["last_action:"]
     shifted_action = data["shifted_action:"]
 
     joint_torques = data.get("joint_torques:")
 
-    base_vel = np.concatenate((base_lin_vel[:, 0:2], base_ang_vel[:, 2:3]), axis=1)
+    if base_ang_vel is not None:
+        base_vel = np.concatenate((base_lin_vel[:, 0:2], base_ang_vel[:, 2:3]), axis=1)
+    else:
+        print("WARNING: base_angular_velocity: not found; plotting linear X/Y velocity only")
+        base_vel = base_lin_vel[:, 0:2]
+
+    cmd_vel = cmd_vel[:, :base_vel.shape[1]]
     x = np.arange(joint_pos.shape[0])
     figures = []
 
@@ -378,16 +387,15 @@ def plot_all_groups(data):
     return figures
 
 
-def figure_saver(figures: list[tuple[str, plt.Figure]], save_path: str, save_dir: str, save_ending: str, dpi: int = 300):
-    base_path = Path(save_path)
-    path = base_path / save_dir
-    if not path.parent.exists():
-        raise FileNotFoundError(f"Parent directory not found: {path.parent}")
-    path.mkdir(exist_ok=True)
+def figure_saver(figures: list[tuple[str, plt.Figure]], save_dir: Path, output_format: str, dpi: int = 300):
+    path = Path(save_dir)
+    path.mkdir(parents=True, exist_ok=True)
     
     for name, fig in figures:
-        filename = f"{name}{save_ending}"
+        filename = f"{name}_deployment_plot.{output_format}"
         fig.savefig(path / filename, dpi=dpi, bbox_inches="tight")
+
+
 def extract_single_count_for_key(data, key: str = "shifted_action:", idx: int = 0):
     key_data = data[key]
     val = []
@@ -399,6 +407,8 @@ def extract_single_count_for_key(data, key: str = "shifted_action:", idx: int = 
 def print_jp_sa_values(data, index):
     jp_data = data["joint_positions:"]
     sa_data = data["shifted_action:"]
+    if index < 0 or index >= len(jp_data):
+        raise ValueError(f"Debug index {index} is outside loaded sample range 0-{len(jp_data) - 1}")
 
     jp_value = np.array(jp_data[index][:]+DEFAULT_JOINT_POSITION[:len(jp_data[index])])
     sa_value = np.array(sa_data[index])
@@ -409,27 +419,55 @@ def print_jp_sa_values(data, index):
 
 
 # ----- MAIN -----
+def parse_args():
+    parser = argparse.ArgumentParser(description="Plot deployment readings from a Spot observation log.")
+    parser.add_argument(
+        "log_file",
+        nargs="?",
+        type=Path,
+        default=Path("graph_code") / "spot_joint_values.txt",
+        help="Deployment log file to plot. Defaults to graph_code/spot_joint_values.txt.",
+    )
+    parser.add_argument(
+        "--save-dir",
+        type=Path,
+        default=Path("graph_code") / "plots_deployment",
+        help="Directory where plots are saved when --save is set.",
+    )
+    parser.add_argument(
+        "--format",
+        choices=("pdf", "png"),
+        default="pdf",
+        help="Output file format for saved plots.",
+    )
+    parser.add_argument("--save", action="store_true", help="Save generated plots without prompting.")
+    parser.add_argument("--no-show", action="store_true", help="Skip displaying plots with matplotlib.")
+    parser.add_argument(
+        "--debug-index",
+        type=int,
+        default=None,
+        help="Print joint position and shifted action values for one sample index.",
+    )
+    return parser.parse_args()
+
+
 def main():
-    # Add filepath to file in logs directly?
-    filename = Path("graph_code") / "spot_joint_values.txt"#"/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
-    save_path = "/home/sundt/thesis/my_spot_thesis/graph_code/plots_deployment/"
-    save_ending = "_deployment_plot.pdf"
-    
-    data = load_data(filename)
+    args = parse_args()
+
+    data = load_data(args.log_file)
     validate_data(data)
     print_summary(data)
 
-    #jp = np.array(extract_single_count_for_key(data, key="joint_positions:", idx=3000))
-    #sa = np.array(extract_single_count_for_key(data, key="shifted_action:", idx=3000))
-    print_jp_sa_values(data, 100)
+    if args.debug_index is not None:
+        print_jp_sa_values(data, args.debug_index)
+
     figures = plot_all_groups(data)
 
-    flag = input("Do you want to save the plots? (y/n): ")
-    if flag == "y":
-        save_dir = input("Input the name of the directory inside plots_deployment to save the plots in: ").strip()
-        figure_saver(figures, save_path, save_dir, save_ending)
+    if args.save:
+        figure_saver(figures, args.save_dir, args.format)
 
-    plt.show()
+    if not args.no_show:
+        plt.show()
 
 
 
