@@ -192,7 +192,7 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
     if show_xlabel:
         ax.set_xlabel("Timestep at 56 Hz")
     if show_legend:
-        ax.legend(loc="upper left", ncol=1)
+        ax.legend(loc="upper left")
     ax.set_title(f"{display_name} Joint Positions")# (Solid - Position, Dashed - Action)")#, Dotted - Default)")
 
 def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel=True, show_xlabel=True, show_legend=True):
@@ -250,7 +250,7 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     ax.set_ylabel("Velocity [m/s] or [rad/s]")
     ax.set_title("Measured vs Commanded Velocity")# (Solid - Base, Dashed - Commanded)")
     if show_legend:
-        ax.legend(loc="upper left", ncol=1)
+        ax.legend(loc="upper left")
 
 def plot_jointtorque_subplot(ax, x, joint_names, group_name, joint_torque, show_ylabel=True, show_xlabel=True, show_legend=True):
     """Plot joint torque groupwise on ax."""
