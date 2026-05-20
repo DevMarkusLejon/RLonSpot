@@ -192,7 +192,7 @@ def plot_jointpos_subplot(ax, x, joint_names, group_name, joint_pos, shifted_act
     if show_xlabel:
         ax.set_xlabel("Timestep at 56 Hz")
     if show_legend:
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper left", ncol=1)
     ax.set_title(f"{display_name} Joint Positions")# (Solid - Position, Dashed - Action)")#, Dotted - Default)")
 
 def plot_jointvel_subplot(ax, x, joint_names, group_name, joint_vel, show_ylabel=True, show_xlabel=True, show_legend=True):
@@ -250,7 +250,7 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     ax.set_ylabel("Velocity [m/s] or [rad/s]")
     ax.set_title("Measured vs Commanded Velocity")# (Solid - Base, Dashed - Commanded)")
     if show_legend:
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper left", ncol=1)
 
 def plot_jointtorque_subplot(ax, x, joint_names, group_name, joint_torque, show_ylabel=True, show_xlabel=True, show_legend=True):
     """Plot joint torque groupwise on ax."""
@@ -286,27 +286,31 @@ def plot_all_groups(data):
         "figure.constrained_layout.h_pad": 0.1, #Height padding around figure
         "figure.constrained_layout.w_pad": 0.15, #Width padding around figure
 
-        "figure.constrained_layout.hspace": 0.03, #Height between plots
-        "figure.constrained_layout.wspace": 0.03, #Width between plots
+        "figure.constrained_layout.hspace": 0.05, #Height between plots
+        "figure.constrained_layout.wspace": 0.05, #Width between plots
 
         # #Font 
         "font.family": "sans-serif", 
         "font.size": 12, 
 
         # #Axes 
-        "axes.titlesize": 16, #Title of subplot 
+        "axes.titlesize": 24, #Title of subplot TEST WITH 20
         "axes.titleweight": "normal", 
-        "axes.labelsize": 14, #x- and ylabel 
+        "axes.labelsize": 20, #x- and ylabel TEST WITH 16
+        "axes.labelpad": 10, #Distance between axis and label
         "axes.linewidth": 1, #Border around subplot 
 
+
         # #Tick labels 
-        "xtick.labelsize": 10, 
-        "ytick.labelsize": 10, 
+        "xtick.labelsize": 16, #TEST WITH 14
+        "ytick.labelsize": 16, #TEST WITH 14
         
         #Legend 
-        "legend.fontsize": 10, #legend text size 
-        "legend.frameon": False, #Box around legend
+        "legend.fontsize": 12, #legend text size 
+        "legend.frameon": True, #Box around legend
         "legend.fancybox": True, 
+        "legend.framealpha": 1, #Transparency of legend box
+        "legend.facecolor": "white",
 
         # #Lines 
         "lines.linewidth": 1.5, #Thickness of plotted lines
@@ -341,13 +345,19 @@ def plot_all_groups(data):
         if all(JOINT_LABEL_TO_IDX[joint] < used_dof for joint in joints) 
     }
 
-
+    #Plot single leg test
+    group_name = "FL"
+    joint_names = active_joint_groups[group_name]
+    fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
+    plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_xlabel=False, show_legend=True)
+    plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
+    figures.append((f"{group_name}_joint_pos", fig))
     # Plot joint pos
-    for group_name, joint_names in active_joint_groups.items():
-        fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-        plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_xlabel=False, show_legend=True)
-        plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
-        figures.append((f"{group_name}_joint_pos", fig))
+    # for group_name, joint_names in active_joint_groups.items():
+    #     fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
+    #     plot_jointpos_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel=True, show_xlabel=False, show_legend=True)
+    #     plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
+    #     figures.append((f"{group_name}_joint_pos", fig))
 
     # Plot joint vels
     # for group_name, joint_names in JOINT_GROUPS.items():
@@ -366,13 +376,13 @@ def plot_all_groups(data):
     #         figures.append((f"{group_name}_joint_torque", fig))
 
     # Plot togheter
-    fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
-    for group_name in ["FL", "FR", "HL",  "HR"]:
-        plot_jointpos_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_ylabel=False, show_xlabel=False, show_legend=(group_name=="FL"))
-    #plot_basevel_subplot(mosaic_ax["VEL"], x, base_vel, cmd_vel)
-    fig.supxlabel("Timestep at 56 Hz")
-    fig.supylabel("Joint angle [rad]")
-    figures.append(("all_joint_pos", fig))
+    # fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
+    # for group_name in ["FL", "FR", "HL",  "HR"]:
+    #     plot_jointpos_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_ylabel=False, show_xlabel=False, show_legend=(group_name=="FL"))
+    # #plot_basevel_subplot(mosaic_ax["VEL"], x, base_vel, cmd_vel)
+    # fig.supxlabel("Timestep at 56 Hz")
+    # fig.supylabel("Joint angle [rad]")
+    # figures.append(("all_joint_pos", fig))
     
 
     return figures
@@ -387,7 +397,7 @@ def figure_saver(figures: list[tuple[str, plt.Figure]], save_path: str, save_dir
     
     for name, fig in figures:
         filename = f"{name}{save_ending}"
-        fig.savefig(path / filename, dpi=dpi, bbox_inches="tight")
+        fig.savefig(path / filename, dpi=dpi)#, bbox_inches="tight")
 def extract_single_count_for_key(data, key: str = "shifted_action:", idx: int = 0):
     key_data = data[key]
     val = []
@@ -411,8 +421,8 @@ def print_jp_sa_values(data, index):
 # ----- MAIN -----
 def main():
     # Add filepath to file in logs directly?
-    filename = "/home/sundt/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
-    save_path = "/home/sundt/thesis/my_spot_thesis/graph_code/plots_deployment/"
+    filename = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/spot_joint_values.txt"
+    save_path = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/plots_deployment/"
     save_ending = "_deployment_plot.pdf"
     
     data = load_data(filename)
