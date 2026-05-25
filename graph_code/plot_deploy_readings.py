@@ -152,17 +152,16 @@ def print_summary(data):
         print(f"  {key} {arr.shape}")
 
 # ----- PLOTTING -----)
-def plot_joint_group_subplot(ax, x, joint_names, group_name, joint_data, shifted_action=None, plot_pos_bounds=False, show_ylabel=None, show_xlabel=None, show_legend=True, show_title=None):
+def plot_joint_group_subplot(ax, x, joint_names, group_name, joint_data, shifted_action=None, default_jointpos=False, plot_pos_bounds=False, show_ylabel=None, show_xlabel=None, show_legend=True, show_title=None):
     """Plot data for joint group on ax."""
     display_name = GROUP_DISPLAY_NAMES[group_name]
     for joint in joint_names:
         joint_type = joint.split("_")[1]
         idx = JOINT_LABEL_TO_IDX[joint]
         color = JOINT_COLOR_MAP[joint]
-
         ax.plot(
             x,
-            joint_data[:, idx] + DEFAULT_JOINT_POSITION[idx],
+            joint_data[:, idx] + DEFAULT_JOINT_POSITION[idx] if default_jointpos else joint_data[:, idx],
             color=color,
             linestyle="-",
             label=joint_type
@@ -193,7 +192,6 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
             base_vel[:, i],
             color=vel_color,
             linestyle="-",
-            linewidth=2,
             label=vel_name
         )
 
@@ -202,7 +200,6 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
             cmd_vel[:, i],
             color=vel_color,
             linestyle="--",
-            linewidth=2,
         )
 
     ax.set_xlabel("Timestep at 56 Hz")
@@ -212,7 +209,7 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
         ax.legend(loc="upper left")
 
 
-def plot_joint_type_subplot(ax, x, joint_type, joint_data, shifted_action=None, show_ylabel=True, show_xlabel=True, show_legend=True, show_title=None):
+def plot_joint_type_subplot(ax, x, joint_type, joint_data, shifted_action=None, default_jointpos=False, show_ylabel=True, show_xlabel=True, show_legend=True, show_title=None):
     """Plot all joints of a type togheter."""
     joint_names = [f"FL_{joint_type}", f"FR_{joint_type}", f"HL_{joint_type}", f"HR_{joint_type}"]
     joint_display_name = {"HX": "Hip X", "HY": "Hip Y", "KN": "Knee"}
@@ -224,7 +221,7 @@ def plot_joint_type_subplot(ax, x, joint_type, joint_data, shifted_action=None, 
 
         ax.plot(
             x,
-            joint_data[:, idx] + DEFAULT_JOINT_POSITION[idx],
+            joint_data[:, idx] + DEFAULT_JOINT_POSITION[idx] if default_jointpos else joint_data[:, idx],
             color=color,
             linestyle="-",
             label=leg_prefix,
@@ -276,7 +273,7 @@ def plot_all_groups(data):
         group_name = "FL"
         joint_names = active_joint_groups[group_name]
         fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-        plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
+        plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
         plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
         figures.append((f"{group_name}_joint_pos", fig))
 
@@ -284,7 +281,7 @@ def plot_all_groups(data):
     if True:
         for group_name, joint_names in active_joint_groups.items():
             fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-            plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, plot_pos_bounds=False, show_ylabel="Joint angle [rad]", show_legend=True, show_title="Joint Positions")
+            plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, plot_pos_bounds=False, default_jointpos=True, show_ylabel="Joint angle [rad]", show_legend=True, show_title="Joint Positions")
             plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
             figures.append((f"{group_name}_joint_pos", fig))
 
@@ -301,26 +298,26 @@ def plot_all_groups(data):
         if joint_torques is not None:
             for group_name, joint_names in active_joint_groups.items():
                 fig, (jointpos_ax, base_vel_ax, joint_torques_ax) = plt.subplots(3, 1, figsize=(12,8), sharex=True, gridspec_kw={'height_ratios': [2,1,1]})
-                plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, show_ylabel="Joint angle [rad]", show_legend=True, show_title="Joint Positions")
+                plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_legend=True, show_title="Joint Positions")
                 plot_basevel_subplot(base_vel_ax, x, base_vel, cmd_vel)
                 plot_joint_group_subplot(joint_torques_ax, x, joint_names, group_name, joint_torques, show_ylabel="Joint torque [Nm]", show_legend=True, show_title="Joint Torques")
                 figures.append((f"{group_name}_joint_torque", fig))
 
     # Plot togheter
-    if True:
+    if False:
         fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
         for group_name in ["FL", "FR", "HL", "HR"]:
-            plot_joint_group_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, show_legend=(group_name=="FL"))
+            plot_joint_group_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, default_jointpos=True, show_legend=(group_name=="FL"), show_title="Joint Positions")
         fig.supxlabel("Timestep at 56 Hz")
         fig.supylabel("Joint angle [rad]")
-        fig.suptitle(f"{GROUP_DISPLAY_NAMES[group_name]} Joint Positions")
+        #fig.suptitle(f"{GROUP_DISPLAY_NAMES[group_name]} Joint Positions")
         figures.append(("all_joint_pos", fig))
     
     #Plot type of joint togheter
-    if True:
+    if False:
         for joint_type in ["HX", "HY", "KN"]:
             fig, ax = plt.subplots(figsize=(12,8))
-            plot_joint_type_subplot(ax, x, joint_type, joint_pos, shifted_action, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
+            plot_joint_type_subplot(ax, x, joint_type, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
             figures.append((f"{joint_type}_joint_pos", fig))
 
     #Return all created figures with their names for saving and showing
@@ -504,6 +501,7 @@ def main():
     
     
     figures = plot_all_groups(data_real)
+    #figures = plot_all_groups(data_sim)
     #figures = plot_multi_datasets(data_real, data_sim)
 
     flag = input("Do you want to save the plots? (y/n): ")
