@@ -6,6 +6,8 @@ from collections import deque
 from dataclasses import dataclass
 from threading import Thread
 
+os.environ["SDL_JOYSTICK_DEVICE"] = "/dev/input/js0"
+
 import numpy as np
 import pygame
 
@@ -31,6 +33,11 @@ class GamepadConfig:
     y_axis_config : AxisConfig = AxisConfig(0, True, 0.2, 0.25, 1, 0.25, 1)
     yaw_axis_config : AxisConfig = AxisConfig(3, True, 0.2, 0.0, 1, 0.0, 1)
     median_filter_window: int = 10  # size of buffer used for salt and pepper filtering
+    
+    r1_button_index: int = 5
+    l1_button_index: int = 4
+    triangle_button_index: int = 0
+    button_variable_step: float = 0.1
 
 
 def load_gamepad_configuration(file: os.PathLike) -> GamepadConfig:
@@ -114,6 +121,9 @@ class Gamepad:
         self._stopping = False
         self._listening_thread = None
         self._config = config
+        self._previous_r1_button = 0
+        self._previous_l1_button = 0
+        self._previous_triangle_button = 0
 
         buffer_length = config.median_filter_window
         self._x_buffer = deque([0] * buffer_length, buffer_length)
@@ -165,7 +175,31 @@ class Gamepad:
             self.yaw = np.median(self._yaw_buffer)
 
             self._context.velocity_cmd = [self.x_vel, self.y_vel, self.yaw]
+
+            # Own x and o button code to change a variable
+            r1_button = self.joystick.get_button(self._config.r1_button_index)
+            l1_button = self.joystick.get_button(self._config.l1_button_index)
+            triangle_button = self.joystick.get_button(self._config.triangle_button_index)
+
+            if triangle_button == 1 and self._previous_triangle_button == 0:
+                self._context.command_toggle_event.set()
+                print("[GAMEPAD] Triangle pressed. Start/Stop requested.")
+
+            if r1_button == 1 and self._previous_r1_button == 0:
+                self._context.button_variable += self._config.button_variable_step
+                self._context.button_variable = np.clip(self._context.button_variable, 0.1, 1.2)
+                print(f"[GAMEPAD] R1 pressed. button_variable: {self._context.button_variable:.2f}")
+
+            if l1_button == 1 and self._previous_l1_button == 0:
+                self._context.button_variable -= self._config.button_variable_step
+                self._context.button_variable = np.clip(self._context.button_variable, 0.1, 1.2)
+                print(f"[GAMEPAD] L1 pressed. button_variable: {self._context.button_variable:.2f}")
+
+            self._previous_r1_button = r1_button
+            self._previous_l1_button = l1_button
+            self._previous_triangle_button = triangle_button
             # update inputs at 100hz this should mean we always have a new data for the 50Hz command update
+            
             pygame.time.wait(10)
 
     def stop_listening(self):

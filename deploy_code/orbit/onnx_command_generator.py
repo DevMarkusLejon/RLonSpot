@@ -28,6 +28,9 @@ class OnnxControllerContext:
     velocity_cmd = [0, 0, 0]
     count = 0
 
+    button_variable = 1.0
+    command_toggle_event = Event()
+
 
 class StateHandler:
     """Class to be used as callback for state stream to put state date
@@ -78,17 +81,16 @@ class OnnxCommandGenerator:
         self._inference_session = ort.InferenceSession(policy_file_name)
         self._last_action = [0] * 19
         self._shifted_action = [0] * 19
+        self._last_load = [0] * 19
         self._count = 1
         self._init_pos = None
         self._init_load = None
+        self._action_scale_button_variable = context.button_variable #Own variable used for action scaling changed in gamepad with r1 (+) and l1 (-)
         self.verbose = verbose
       
         # open a .txt file for logging, finds the next number in order used for the file name
         log_dir = "/home/spot/spot-rl-deployment/spot-rl-example/python/logs/"
-        log_prefix = "logfile_"
-        log_suffix = ".txt"
-        file_number = self.get_next_log_file_number(log_dir, log_prefix, log_suffix)
-        self.filename = log_dir + log_prefix + str(file_number) + log_suffix
+        self.filename = self.get_next_log_file_name(log_dir, "logfile_", ".txt")
         self._log_file = open(self.filename, "w")
         print("Saving log in file: ", self.filename)
 
@@ -102,14 +104,16 @@ class OnnxCommandGenerator:
             True, True, True, True, True, True, True, # arm 
         ]
         self._TOTAL_DOF = 19
-        self._USED_DOF = 12
-        
+        self._USED_DOF = 19
+        # Safety check to see if USED DOF match the Policy DOF 
         policy_input_len = self._inference_session.get_inputs()[0].shape[-1] #len of first input list for the policy
         policy_input_dof = 12 if policy_input_len == 48 else 19 if policy_input_len == 69 else None
-        print(f"Policy len: {policy_input_len}. Policy DOF: {policy_input_dof}.")
-        print(f"Full DOF: {self._TOTAL_DOF}. Used DOF: {self._USED_DOF}.")
-        print(f"USED_DOF and Policy DOF  "
-              f"{'MATCH, GO AHEAD AND RUN!' if self._USED_DOF == policy_input_dof else 'DO NOT MATCH, FIX BEFORE RUNNING!'}")
+        print(f"Policy len: {policy_input_len}. Policy DOF: {policy_input_dof}. Full DOF of Spot: {self._TOTAL_DOF}")
+        if policy_input_dof != 12 and policy_input_dof != 19:
+            raise ValueError("Policy DOF is not 12 or 19. Check the policy before running.")
+        
+        self._USED_DOF = policy_input_dof
+        print(f"Inference session will use {self._USED_DOF} DOF.")
 
 
     def __call__(self):
@@ -122,14 +126,15 @@ class OnnxCommandGenerator:
         if self._init_pos is None:
             self._init_pos = self._context.latest_state.joint_states.position
             self._init_load = self._context.latest_state.joint_states.load
-            print("Spot init pos in spot order, printed in onnx __call: ", self._init_pos) # own print
-            print("Spot init load in spot order, printed in onnx __call: ", self._init_load) # own print
+            #print("Spot init pos in spot order, printed in onnx __call: ", self._init_pos) # own print
+            #print("Spot init load in spot order, printed in onnx __call: ", self._init_load) # own print
             spot_to_orbit = find_ordering(ordered_joint_names_bosdyn, ordered_joint_names_orbit)
             print("Spot init pos in orbit order, printed in onnx __call: ", reorder(self._init_pos, spot_to_orbit)) # own print
             print("Spot init load in orbit order, printed in onnx __call: ", reorder(self._init_load, spot_to_orbit)) # own print
 
 
         # extract observation data from latest spot state data
+        self._action_scale_button_variable = self._context.button_variable
         input_list = self.collect_inputs(self._context.latest_state, self._config)
         # print("observations", input_list)
 
@@ -141,18 +146,20 @@ class OnnxCommandGenerator:
         # joint order and offset
         test_scale = min(0.1 * self._count, 1) #0.1 is standard value
 
-        scaled_output = list(map(mul, [self._config.action_scale] * self._USED_DOF, output))
+        scaled_output = list(map(mul, [self._config.action_scale * self._action_scale_button_variable] * self._USED_DOF, output))
         test_scaled = list(map(mul, [test_scale] * self._USED_DOF, scaled_output))
 
         default_joints = dict_to_list(self._config.default_joints, ordered_joint_names_orbit)[:self._USED_DOF]
         shifted_output = list(map(add, test_scaled, default_joints))
-        print("shifted output in orbit order: \n", shifted_output) # own print 
+        #print("shifted output in orbit order: \n", shifted_output) # own print 
 
         orbit_to_spot = find_ordering(ordered_joint_names_orbit, ordered_joint_names_bosdyn)[:self._USED_DOF]
         reordered_output = reorder(shifted_output, orbit_to_spot)
-        print("shifted output in bosdyn order: \n", reordered_output) # own print
+        #print("shifted output in bosdyn order: \n", reordered_output) # own print
         
+
         # generate proto message from target joint positions
+
         #proto = self.create_proto(reordered_output)
         #proto = self.create_proto_hold()
         #proto = self.create_proto_blend_hold(reordered_output)
@@ -189,58 +196,21 @@ class OnnxCommandGenerator:
         observations += ob.get_joint_positions(state, config)[:self._USED_DOF]
         observations += ob.get_joint_velocity(state)[:self._USED_DOF]
         observations += self._last_action[:self._USED_DOF]
+        
+        self._last_load = ob.get_joint_load(state)
 
-        load = ob.get_joint_torques(state)
-
+        # Print observations every 50 count. Togheter with additional prints not part of the vector.
         if self._count % 50 == 0:
+            print(f"count: {self._count}")
             print_observations(observations, self._USED_DOF)
             print(f"shifted_action: {self._shifted_action[:self._USED_DOF]}")
-            print(f"Joint load: {load}")
+            print(f"joint load: {self._last_load[:self._USED_DOF]}")
+            print(f"button_variable: {self._action_scale_button_variable:.2f}")
             #print("[INFO] cmd", self._context.velocity_cmd)
         self.log_observations_txt(observations)
 
         return observations
 
-    def log_observations_txt(self, observations):
-        """save observations into txt file.
-
-        arguments
-        observations -- list of float values ready to be passed into the model
-        """
-        lines = [
-            f"base_linear_velocity: {observations[0:3]}",
-            f"base_angular_velocity: {observations[3:6]}",
-            f"projected_gravity: {observations[6:9]}",
-            f"commanded_vel: {observations[9:12]}",
-            f"joint_positions: {observations[12:12+self._USED_DOF]}",
-            f"joint_velocity: {observations[12+self._USED_DOF:12+self._USED_DOF*2]}",
-            f"last_action: {observations[12+self._USED_DOF*2:12+self._USED_DOF*3]}",
-            f"shifted_action: {self._shifted_action[:self._USED_DOF]}"
-        ]
-            #f"joint_positions: {observations[12:31]}",
-            #f"joint_velocity: {observations[31:50]}",
-            #f"last_action: {observations[50:69]}",
-
-        for line in lines:
-            self._log_file.write(line + "\n")
-        self._log_file.flush()
-
-    def close_log_file(self):
-        """Close the log txt file."""
-        print("Closing log file with name: ", self.filename)
-        self._log_file.close()
-    
-    def get_next_log_file_number(self, log_dir: str, prefix: str = "logfile_", suffix: str = ".txt") -> str:
-        os.makedirs(log_dir, exist_ok=True)
-        pattern = re.compile(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}")
-        
-        existing_numbers = []
-        for filename in os.listdir(log_dir):
-            match = pattern.match(filename)
-            if match:
-                existing_numbers.append(int(match.group(1)))
-            
-        return max(existing_numbers, default=0) + 1  
 
 
     def create_proto(self, pos_command: List[float]):
@@ -482,7 +452,6 @@ class OnnxCommandGenerator:
             else:
                 pos_cmd[joint_ind] = pos_command[joint_ind]
 
-
         # Fill in gains the first dt
         if self._count == 1:
             update_proto.joint_command.gains.k_q_p.extend(k_q_p)
@@ -502,3 +471,47 @@ class OnnxCommandGenerator:
         # Set user key for latency tracking
         update_proto.joint_command.user_command_key = self._count
         return update_proto
+    
+
+    def log_observations_txt(self, observations):
+        """save observations into txt file.
+
+        arguments
+        observations -- list of float values ready to be passed into the model
+        """
+        lines = [
+            f"base_linear_velocity: {observations[0:3]}",
+            f"base_angular_velocity: {observations[3:6]}",
+            f"projected_gravity: {observations[6:9]}",
+            f"commanded_vel: {observations[9:12]}",
+            f"joint_positions: {observations[12:12+self._USED_DOF]}",
+            f"joint_velocity: {observations[12+self._USED_DOF:12+self._USED_DOF*2]}",
+            f"last_action: {observations[12+self._USED_DOF*2:12+self._USED_DOF*3]}",
+            f"shifted_action: {self._shifted_action[:self._USED_DOF]}",
+            f"joint_torques: {self._last_load[:self._USED_DOF]}"
+        ]
+            #f"joint_positions: {observations[12:31]}",
+            #f"joint_velocity: {observations[31:50]}",
+            #f"last_action: {observations[50:69]}",
+
+        for line in lines:
+            self._log_file.write(line + "\n")
+        self._log_file.flush()
+
+    def close_log_file(self):
+        """Close the log txt file."""
+        print("Closing log file with name: ", self.filename)
+        self._log_file.close()
+    
+    def get_next_log_file_name(self, dir: str, prefix: str = "logfile_", suffix: str = ".txt") -> str:
+        os.makedirs(dir, exist_ok=True)
+        pattern = re.compile(rf"{re.escape(prefix)}(\d+){re.escape(suffix)}")
+        
+        existing_numbers = []
+        for filename in os.listdir(dir):
+            match = pattern.match(filename)
+            if match:
+                existing_numbers.append(int(match.group(1)))
+        
+        file_nbr = max(existing_numbers, default=0) + 1
+        return dir + prefix + str(file_nbr) + suffix

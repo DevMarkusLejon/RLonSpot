@@ -3,6 +3,7 @@
 import argparse
 import sys
 from pathlib import Path
+from threading import Thread
 
 import bosdyn.client.util
 import orbit.orbit_configuration
@@ -21,6 +22,18 @@ from spot.mock_spot import MockSpot
 from spot.spot import Spot
 from utils.event_divider import EventDivider
 
+def start_keyboard_toggle_listener(context: OnnxControllerContext):
+    def listen_for_enter():
+        while True:
+            input()
+            context.command_toggle_event.set()
+    keyboard_thread = Thread(target=listen_for_enter, daemon=True)
+    keyboard_thread.start()
+
+def wait_for_command_toggle(context: OnnxControllerContext, message: str):
+    print(message)
+    context.command_toggle_event.clear()
+    context.command_toggle_event.wait()
 
 def main():
     """Command line interface. change that is ok"""
@@ -35,6 +48,7 @@ def main():
     policy_file = orbit.orbit_configuration.detect_policy_file(options.policy_file_path)
 
     context = OnnxControllerContext()
+    start_keyboard_toggle_listener(context)
     config = orbit.orbit_configuration.load_configuration(conf_file)
     print(config)
 
@@ -67,7 +81,7 @@ def main():
     with spot.lease_keep_alive():
         try:
             spot.power_on()
-            #spot.stand(0.0)
+            spot.stand(0.0)
             spot.start_state_stream(state_handler)
             
             context.event.clear()
@@ -75,10 +89,12 @@ def main():
             print("Joint state init post printed in spot_rl_demo")
             print(list(context.latest_state.joint_states.position))
 
-            print("Press Enter to begin, Press Enter again to stop")
-            input()
+            wait_for_command_toggle(context, "Press Enter or Triangle to begin.")
+            # print("Press Enter to begin, Press Enter again to stop")
+            # input()
             spot.start_command_stream(command_generator, timeing_policy)
-            input()
+            #input()
+            wait_for_command_toggle(context, "Press Enter or Triangle again to stop.")
 
         except KeyboardInterrupt:
             print("killed with ctrl-c")
