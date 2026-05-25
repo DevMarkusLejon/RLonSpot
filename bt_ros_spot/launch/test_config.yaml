@@ -1,7 +1,0 @@
-#Config file for ros bt bringup demo. 
-#Add configs from ~/thesis/colcon_ws/src/spot_ros2/spot_drivers/config/spot_ros_example.yaml
-#Set cameras to bw instead of default rgb
-
-/**:
-  ros__parameters:
-    rgb_cameras: False  # Set to False if your robot has greyscale cameras -- otherwise you won't receive data.
