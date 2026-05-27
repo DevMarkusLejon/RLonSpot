@@ -1,6 +1,7 @@
 import ast
 import matplotlib
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 from pathlib import Path
 #fl_hx, fr_hx, hl_hx, hr_hx, fl_hy, fr_hy, hl_hy, hr_hy, fl_kn, fr_kn, hl_kn, hr_kn
@@ -96,7 +97,7 @@ def load_data(filename):
             key = line[:bracket_index].strip()
             vector_str = line[bracket_index:].strip()
             if key not in REQUIRED_KEYS and key not in OPTIONAL_KEYS:
-                #print(f"Key: '{key}' not required, skipping.")
+                print(f"Key: '{key}' not required or optional, skipping.")
                 continue
 
             # Convert string to actual list
@@ -151,7 +152,7 @@ def print_summary(data):
     for key, arr in data.items():
         print(f"  {key} {arr.shape}")
 
-# ----- PLOTTING -----)
+# ----- PLOTTING -----
 def plot_joint_group_subplot(ax, x, joint_names, group_name, joint_data, shifted_action=None, default_jointpos=False, plot_pos_bounds=False, show_ylabel=None, show_xlabel=None, show_legend=True, show_title=None):
     """Plot data for joint group on ax."""
     display_name = GROUP_DISPLAY_NAMES[group_name]
@@ -180,6 +181,7 @@ def plot_joint_group_subplot(ax, x, joint_names, group_name, joint_data, shifted
         ax.legend(loc="upper left")
     if show_title is not None:
         ax.set_title(f"{display_name} {show_title}")
+    ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:.1f}"))
 
 
 def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
@@ -207,6 +209,7 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
     ax.set_title("Measured vs Commanded Velocity")# (Solid - Base, Dashed - Commanded)")
     if show_legend:
         ax.legend(loc="upper left")
+    ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:.1f}"))
 
 
 def plot_joint_type_subplot(ax, x, joint_type, joint_data, shifted_action=None, default_jointpos=False, show_ylabel=True, show_xlabel=True, show_legend=True, show_title=None):
@@ -242,6 +245,7 @@ def plot_joint_type_subplot(ax, x, joint_type, joint_data, shifted_action=None, 
         ax.legend(loc="upper left")
     if show_title is not None:
         ax.set_title(f"{joint_display_name[joint_type]} {show_title}")
+    ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:.1f}"))
 
 def plot_all_groups(data):
     """Create all group plots and extract the data."""
@@ -394,6 +398,7 @@ def plot_multi_datasets(data_a, data_b):
         ax.set_ylabel("Joint angle [rad]")
         ax.set_title(f"{display_name} Joint Positions Comparison")
         ax.legend(loc="upper left")
+        ax.yaxis.set_major_formatter(mticker.StrMethodFormatter("{x:.1f}"))
         
         figures.append((f"{group_name}_joint_pos_comparison", fig))
     return figures
@@ -486,21 +491,34 @@ def main():
     })
 
     # Add filepath to file in logs directly?
+    file110 = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log110_firstwalkbigroom.txt"
+    file111_full = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_secondwalkbigroom.txt"
+    file111_pushing = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_pushing_0to5200.txt"
+    file111_walkinplace = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_walkinplace_3600to10700.txt"
+    file111_longwalkfs = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_walkforwardandsideways_11800to22000.txt"
+
+
     filename_real = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/spot_real_values.txt"
     filename_sim = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/spot_sim_values.txt"
     save_path = "/local/home/fredrik/thesis/my_spot_thesis/data/plotting_images/"
     save_ending = "_deployment_plot.pdf"
     
-    data_real = load_data(filename_real)
-    validate_data(data_real)
-    print_summary(data_real)
+    # data_real = load_data(filename_real)
+    # validate_data(data_real)
+    # print_summary(data_real)
 
-    data_sim = load_data(filename_sim)
-    validate_data(data_sim)
-    print_summary(data_sim)
+    # data_sim = load_data(filename_sim)
+    # validate_data(data_sim)
+    # print_summary(data_sim)
+
+    data = load_data(file110)
+    validate_data(data)
+    print_summary(data)
+    figures = plot_all_groups(data)
+
+
     
-    
-    figures = plot_all_groups(data_real)
+    #figures = plot_all_groups(data_real)
     #figures = plot_all_groups(data_sim)
     #figures = plot_multi_datasets(data_real, data_sim)
 
