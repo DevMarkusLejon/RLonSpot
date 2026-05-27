@@ -12,6 +12,7 @@ The project was developed and tested across several separate systems. Other vers
 - Python 3.10
 - Boston Dynamics Spot SDK 
 - Spot Joint-level API license
+- Spot RL Researcher Kit deployment code
 - Docker
 - NVIDIA Container Toolkit
 - Isaac Sim, run in a Docker container
@@ -20,6 +21,7 @@ The project was developed and tested across several separate systems. Other vers
 ### Hardware used
 - The robot platform Spot
 - Spot arm payload
+- LTH's Bokertov server (External computing machine)
 - Spot RL Researcher Kit
 - NVIDIA Jetson Orin GTX
 
@@ -32,9 +34,7 @@ This repository combines files from several parts of the project, but not every 
 - Deployment code is run on the Jetson/Spot RL Researcher Kit.
 - Additional Spot SDK code is installed and run outside this repository.
 
-Because of this, the Python requirements included in this repository only cover the plotting and analysis scripts in `src/graph_code/`.
-
-### Local plotting requirements
+For the requirements of each external system, refer to its official installation guide. The Python requirements for the plotting and analysis scripts in `src/graph_code/` are listed in `src/graph_code/requirements.txt`.
 
 Install the local plotting dependencies with:
 
@@ -82,7 +82,7 @@ Isaac Lab is used for training and evaluating reinforcement learning policies in
 
 ## Technical Manual
 
-Detailed setup instructions are provided in the technical manual:
+Detailed setup instructions are provided in the technical manual located in `docs/`.
 
 - [Technical manual](docs/technical_manual.pdf)
 
