@@ -1,9 +1,5 @@
-#Ignore files generated at runtime
 *.dot
-*.png
-*.svg
 __pycache__/
-test.py
 spot_joint_values.txt
 spot_real_values.txt
 spot_sim_values.txt
