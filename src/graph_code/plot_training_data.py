@@ -10,6 +10,50 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from pathlib import Path
 #import numpy as np
+plt.rcParams.update({ 
+    #Figure 
+    "figure.titlesize": 24, #Title over whole figure 
+    "figure.dpi": 100, 
+    "figure.constrained_layout.use": True, #Automatically adjust spacing between subplots to prevent overlap
+    
+    "figure.constrained_layout.h_pad": 0.1, #Height padding around figure
+    "figure.constrained_layout.w_pad": 0.15, #Width padding around figure
+
+    "figure.constrained_layout.hspace": 0.05, #Height between plots
+    "figure.constrained_layout.wspace": 0.05, #Width between plots
+
+    # #Font 
+    "font.family": "sans-serif", 
+    "font.size": 12, 
+
+    # #Axes 
+    "axes.titlesize": 24, #Title of subplot TEST WITH 20
+    "axes.titleweight": "normal", 
+    "axes.labelsize": 20, #x- and ylabel TEST WITH 16
+    "axes.labelpad": 10, #Distance between axis and label
+    "axes.linewidth": 1, #Border around subplot 
+
+
+    # #Tick labels 
+    "xtick.labelsize": 16, #TEST WITH 14
+    "ytick.labelsize": 16, #TEST WITH 14
+    
+    #Legend 
+    "legend.fontsize": 12, #legend text size 
+    "legend.frameon": True, #Box around legend
+    "legend.fancybox": True, 
+    "legend.framealpha": 1, #Transparency of legend box
+    "legend.facecolor": "white",
+
+    # #Lines 
+    "lines.linewidth": 1.5, #Thickness of plotted lines
+
+    # #Grid 
+    "axes.grid": False, 
+    "grid.alpha": 0.3,
+    "axes.spines.top": True, 
+    "axes.spines.right": True,
+})
 
 
 @dataclass
@@ -100,73 +144,74 @@ def plot_togheter_data(td_list: list[TrainingData], x_col: str = "Step", y_col: 
 
 def main(): 
     #DIR
-    #dir = "locomotion_policy_20K_2_phase_lleg_disabled/"
-    dir = "Standing_policy/"
+    dir = "locomotion_policy_20K_2_phase_lleg_disabled/"
+    #dir = "Standing_policy/"
     #Saving
-    save_path = "/local/home/fredrik/thesis/colcon_ws/src/my_spot_thesis/data/plotting_images/" + dir
+    save_path = "/local/home/fredrik/thesis/my_spot_thesis/data/plotting_images/" + dir
     save_ending = "_training_plot.png"
 
     #Files
-    file_path = "/local/home/fredrik/thesis/colcon_ws/src/my_spot_thesis/graph_code/data/training_logfiles/" + dir
+    file_path = "/local/home/fredrik/thesis/my_spot_thesis/data/training_logfiles/" + dir
     file_ending = ".csv"
-    file_names = [
-        "rewards/joint_pos_default_tracking",
-        "rewards/mean_reward",
-        "terminations/termination_body_count",
-        "terminations/termination_non_foot_lleg_contact",
-        "terminations/termination_timeout"
-    ]
-    titles = [
-        "Joint Pos Default Tracking",
-        "Total Mean Reward",
-        "Body Contact",
-        "Non Foot lleg Contact",
-        "Timeout"
-    ]
-    abreviations = [
-        "jpdt",
-        "tmr",
-        "bc",
-        "nflc",
-        "to"
-    ]
-    x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
-    y_cols = ["Reward Value", "Total Reward", "Terminations %", "Terminations %", "Terminations %"]
+
     # file_names = [
-    #     "rewards/base_angular_velocity",
-    #     "rewards/base_linear_velocity",
-    #     "rewards/gait_reward",
-    #     "stats/mean_reward",
-    #     "stats/mean_episode_length",
-    #     "stats/terrain_levels",
-    #     "terminations/non_foot_lleg_contact_termination",
-    #     "terminations/time_out_termination",
-    #     "terminations/body_contact_termination"
+    #     "rewards/joint_pos_default_tracking",
+    #     "rewards/mean_reward",
+    #     "terminations/termination_body_count",
+    #     "terminations/termination_non_foot_lleg_contact",
+    #     "terminations/termination_timeout"
     # ]
     # titles = [
-    #     "Base Angular Velocity",
-    #     "Base Linear Velocity",
-    #     "Gait",
+    #     "Joint Position Default Tracking",
     #     "Total Mean Reward",
-    #     "Mean Episode Length",
-    #     "Terrain Level",
+    #     "Body Contact",
     #     "Non Foot lleg Contact",
-    #     "Timeout",
-    #     "Body Contact"
+    #     "Timeout"
     # ]
     # abreviations = [
-    #     "bav",
-    #     "blv",
-    #     "gait",
+    #     "jpdt",
     #     "tmr",
-    #     "mel",
-    #     "ter_lvl",
+    #     "bc",
     #     "nflc",
-    #     "to",
-    #     "bc"
+    #     "to"
     # ]
-    # x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
-    # y_cols = ["Reward Value", "Reward Value", "Reward Value", "Total Reward", "Episode Length", "Curriculum Level", "Termination %", "Termination %", "Termination %"]
+    # x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
+    # y_cols = ["Reward Value", "Total Reward", "Terminations %", "Terminations %", "Terminations %"]
+    file_names = [
+        "rewards/base_angular_velocity",
+        "rewards/base_linear_velocity",
+        "rewards/gait_reward",
+        "stats/mean_reward",
+        "stats/mean_episode_length",
+        "stats/terrain_levels",
+        "terminations/non_foot_lleg_contact_termination",
+        "terminations/time_out_termination",
+        "terminations/body_contact_termination"
+    ]
+    titles = [
+        "Base Angular Velocity",
+        "Base Linear Velocity",
+        "Gait",
+        "Total Mean Reward",
+        "Mean Episode Length",
+        "Terrain Level",
+        "Non Foot lleg Contact",
+        "Timeout",
+        "Body Contact"
+    ]
+    abreviations = [
+        "bav",
+        "blv",
+        "gait",
+        "tmr",
+        "mel",
+        "ter_lvl",
+        "nflc",
+        "to",
+        "bc"
+    ]
+    x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
+    y_cols = ["Reward Value", "Reward Value", "Reward Value", "Total Reward", "Episode Length", "Curriculum Level", "Termination %", "Termination %", "Termination %"]
     
 
     plot_togheter = [

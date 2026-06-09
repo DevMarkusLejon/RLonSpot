@@ -37,6 +37,8 @@ OPTIONAL_KEYS = [
     "last_action:",
     "joint_torques:",
 ]
+SAMPLE_RATE_HZ = 56
+X_AXIS_LABEL = "Time [s]"
 
 # This is in orbit order
 JOINT_LABELS = [
@@ -153,6 +155,11 @@ def print_summary(data):
         print(f"  {key} {arr.shape}")
 
 # ----- PLOTTING -----
+def make_time_axis(sample_count, sample_rate_hz=SAMPLE_RATE_HZ):
+    """Return elapsed time in seconds for evenly sampled log data."""
+    return np.arange(sample_count) / sample_rate_hz
+
+
 def plot_joint_group_subplot(ax, x, joint_names, group_name, joint_data, shifted_action=None, default_jointpos=False, plot_pos_bounds=False, show_ylabel=None, show_xlabel=None, show_legend=True, show_title=None):
     """Plot data for joint group on ax."""
     display_name = GROUP_DISPLAY_NAMES[group_name]
@@ -204,7 +211,7 @@ def plot_basevel_subplot(ax, x, base_vel, cmd_vel, show_legend=True):
             linestyle="--",
         )
 
-    ax.set_xlabel("Timestep at 56 Hz")
+    ax.set_xlabel(X_AXIS_LABEL)
     ax.set_ylabel("Velocity [m/s] or [rad/s]")
     ax.set_title("Measured vs Commanded Velocity")# (Solid - Base, Dashed - Commanded)")
     if show_legend:
@@ -261,7 +268,8 @@ def plot_all_groups(data):
 
     base_vel = np.concatenate((base_lin_vel[:, 0:2], base_ang_vel[:, 2:3]), axis=1)
     #Extract x axis for plotting
-    x = np.arange(joint_pos.shape[0])
+    x = np.arange(joint_pos.shape[0]) / SAMPLE_RATE_HZ
+
     figures = []
 
     active_joint_groups = {
@@ -277,7 +285,7 @@ def plot_all_groups(data):
         group_name = "FL"
         joint_names = active_joint_groups[group_name]
         fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
-        plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
+        plot_joint_group_subplot(jointpos_ax, x, joint_names, group_name, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel=X_AXIS_LABEL, show_legend=True, show_title="Joint Positions")
         plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
         figures.append((f"{group_name}_joint_pos", fig))
 
@@ -312,7 +320,7 @@ def plot_all_groups(data):
         fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
         for group_name in ["FL", "FR", "HL", "HR"]:
             plot_joint_group_subplot(mosaic_ax[group_name], x, JOINT_GROUPS[group_name], group_name, joint_pos, shifted_action, default_jointpos=True, show_legend=(group_name=="FL"), show_title="Joint Positions")
-        fig.supxlabel("Timestep at 56 Hz")
+        fig.supxlabel(X_AXIS_LABEL)
         fig.supylabel("Joint angle [rad]")
         #fig.suptitle(f"{GROUP_DISPLAY_NAMES[group_name]} Joint Positions")
         figures.append(("all_joint_pos", fig))
@@ -321,7 +329,7 @@ def plot_all_groups(data):
     if False:
         for joint_type in ["HX", "HY", "KN"]:
             fig, ax = plt.subplots(figsize=(12,8))
-            plot_joint_type_subplot(ax, x, joint_type, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel="Timestep at 56 Hz", show_legend=True, show_title="Joint Positions")
+            plot_joint_type_subplot(ax, x, joint_type, joint_pos, shifted_action, default_jointpos=True, show_ylabel="Joint angle [rad]", show_xlabel=X_AXIS_LABEL, show_legend=True, show_title="Joint Positions")
             figures.append((f"{joint_type}_joint_pos", fig))
 
     #Return all created figures with their names for saving and showing
@@ -342,7 +350,8 @@ def plot_multi_datasets(data_a, data_b):
     joint_pos_b = data_b["joint_positions:"]
     shifted_action_b = data_b["shifted_action:"]
 
-    x = np.arange(joint_pos_a.shape[0])
+    x = np.arange(joint_pos_a.shape[0]) / SAMPLE_RATE_HZ
+
     figures = []
 
     active_joint_groups = {
@@ -394,7 +403,7 @@ def plot_multi_datasets(data_a, data_b):
                 linestyle="-.",
                 #label=f"{joint} Shifted Action B"
             )
-        ax.set_xlabel("Timestep at 56 Hz")
+        ax.set_xlabel(X_AXIS_LABEL)
         ax.set_ylabel("Joint angle [rad]")
         ax.set_title(f"{display_name} Joint Positions Comparison")
         ax.legend(loc="upper left")
@@ -498,8 +507,8 @@ def main():
     file111_longwalkfs = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_walkforwardandsideways_11800to22000.txt"
 
 
-    filename_real = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/spot_real_values.txt"
-    filename_sim = "/local/home/fredrik/thesis/my_spot_thesis/graph_code/spot_sim_values.txt"
+    filename_real = "/local/home/fredrik/thesis/my_spot_thesis/src/graph_code/spot_real_values.txt"
+    filename_sim = "/local/home/fredrik/thesis/my_spot_thesis/src/graph_code/spot_sim_values.txt"
     save_path = "/local/home/fredrik/thesis/my_spot_thesis/data/plotting_images/"
     save_ending = "_deployment_plot.pdf"
     
@@ -511,7 +520,11 @@ def main():
     # validate_data(data_sim)
     # print_summary(data_sim)
 
-    data = load_data(file110)
+    data = load_data(file111_pushing)
+    #data1 = {key: arr[20*56:67*56] for key, arr in data.items()}
+    data1 = {key: arr[20*56:35*56] for key, arr in data.items()}
+    data2 = {key: arr[42*56:67*56] for key, arr in data.items()}
+    data = {key: np.concatenate((data1[key], data2[key]), axis=0) for key in data1 if key in data2}
     validate_data(data)
     print_summary(data)
     figures = plot_all_groups(data)
