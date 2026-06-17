@@ -5,7 +5,7 @@ Guide to move files between PC and Jetson mounted on Spot.
 2. Move the files from PC to Jetson with the following command:
     scp -P 20022 -r <local_dir>/* spot@192.168.80.3:<remote_path> 
     There is a dir named labpol to place policy files in:/home/spot/labpol/
-3. Connect to Jetson, pwd: spot 
+3. Connect to Jetson: 
     ssh -p 20022 spot@192.168.80.3
 4. Navigate to directory and convert env file from .yaml to .json
     cd ~/spot-rl-deployment/spot-rl-example/python/utils/
@@ -29,13 +29,3 @@ Guide to move files between PC and Jetson mounted on Spot.
 1. From host PC run: <local_dir> could be . to save them in the current dir
     scp -P 20022 spot@192.168.80.3:~/spot-rl-deployment/spot-rl-example/python/logs/<log_file.txt> <local_dir>
     
-Sundt vs code info.
-Version: 1.116.0 (user setup)
-Commit: 560a9dba96f961efea7b1612916f89e5d5d4d679
-Date: 2026-04-15T00:28:13Z
-Electron: 39.8.7
-ElectronBuildId: 13797146
-Chromium: 142.0.7444.265
-Node.js: 22.22.1
-V8: 14.2.231.22-electron.0
-OS: Windows_NT x64 10.0.26200

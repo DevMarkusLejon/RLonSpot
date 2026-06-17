@@ -277,10 +277,8 @@ def plot_all_groups(data):
         for name, joints in JOINT_GROUPS.items() 
         if all(JOINT_LABEL_TO_IDX[joint] < joint_pos.shape[1] for joint in joints) 
     }
-    #Make a dict with boolean flags for what type of plot to do
 
-
-    #Plot single leg test
+    #Plot singular leg group
     if False:
         group_name = "FL"
         joint_names = active_joint_groups[group_name]
@@ -289,7 +287,7 @@ def plot_all_groups(data):
         plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
         figures.append((f"{group_name}_joint_pos", fig))
 
-    # Plot joint pos
+    # Plot joint pos for each leg group separately with base vel
     if True:
         for group_name, joint_names in active_joint_groups.items():
             fig, (jointpos_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [2,1]}) 
@@ -297,7 +295,7 @@ def plot_all_groups(data):
             plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
             figures.append((f"{group_name}_joint_pos", fig))
 
-    # Plot joint vels
+    # Plot joint vels for each leg group separately with base vel
     if False:
         for group_name, joint_names in JOINT_GROUPS.items():
             fig, (jointvel_ax, basevel_ax) = plt.subplots(2, 1, figsize=(12, 8), sharex=True, gridspec_kw={'height_ratios': [3,1]}) 
@@ -305,7 +303,7 @@ def plot_all_groups(data):
             plot_basevel_subplot(basevel_ax, x, base_vel, cmd_vel, show_legend=True)
             figures.append((f"{group_name}_joint_vel", fig))
     
-    # Plot joint torques with pose and cmd vels
+    # Plot joint torques for each leg group separately with base vel
     if False:
         if joint_torques is not None:
             for group_name, joint_names in active_joint_groups.items():
@@ -315,7 +313,7 @@ def plot_all_groups(data):
                 plot_joint_group_subplot(joint_torques_ax, x, joint_names, group_name, joint_torques, show_ylabel="Joint torque [Nm]", show_legend=True, show_title="Joint Torques")
                 figures.append((f"{group_name}_joint_torque", fig))
 
-    # Plot togheter
+    # Plot joint pos groups in a mosaic
     if False:
         fig, mosaic_ax = plt.subplot_mosaic([["FL", "FR"], ["HL", "HR"]], figsize=(12,8), sharex=True) 
         for group_name in ["FL", "FR", "HL", "HR"]:
@@ -325,7 +323,7 @@ def plot_all_groups(data):
         #fig.suptitle(f"{GROUP_DISPLAY_NAMES[group_name]} Joint Positions")
         figures.append(("all_joint_pos", fig))
     
-    #Plot type of joint togheter
+    #Plot joint type together for all legs
     if False:
         for joint_type in ["HX", "HY", "KN"]:
             fig, ax = plt.subplots(figsize=(12,8))
@@ -337,7 +335,6 @@ def plot_all_groups(data):
 
 def plot_multi_datasets(data_a, data_b):
     """Plot two datasets togheter for comparison."""
-    #Have to extract base vel here if we want to plot it
     figures = []
 
     # Align data 
@@ -360,7 +357,7 @@ def plot_multi_datasets(data_a, data_b):
         if all(JOINT_LABEL_TO_IDX[joint] < joint_pos_a.shape[1] for joint in joints) 
     }
 
-    # Plot all leg groups
+    # Plot all leg groups together for each dataset
     joint_a_color_map = {"HX": "tab:blue", "HY": "tab:red", "KN": "tab:green"}
     joint_b_color_map = {"HX": "tab:cyan", "HY": "tab:orange", "KN": "tab:olive"}
     for group_name, joint_names in active_joint_groups.items():
@@ -499,39 +496,22 @@ def main():
         "axes.spines.right": True,
     })
 
-    # Add filepath to file in logs directly?
-    file110 = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log110_firstwalkbigroom.txt"
-    file111_full = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_secondwalkbigroom.txt"
-    file111_pushing = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_pushing_0to5200.txt"
-    file111_walkinplace = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_walkinplace_3600to10700.txt"
-    file111_longwalkfs = "/local/home/fredrik/thesis/my_spot_thesis/data/deployment_logfiles/finetune/log111_walkforwardandsideways_11800to22000.txt"
-
-
     filename_real = "/local/home/fredrik/thesis/my_spot_thesis/src/graph_code/spot_real_values.txt"
     filename_sim = "/local/home/fredrik/thesis/my_spot_thesis/src/graph_code/spot_sim_values.txt"
     save_path = "/local/home/fredrik/thesis/my_spot_thesis/data/plotting_images/"
     save_ending = "_deployment_plot.pdf"
-    
-    # data_real = load_data(filename_real)
-    # validate_data(data_real)
-    # print_summary(data_real)
 
     # data_sim = load_data(filename_sim)
     # validate_data(data_sim)
     # print_summary(data_sim)
 
-    data = load_data(file111_pushing)
-    #data1 = {key: arr[20*56:67*56] for key, arr in data.items()}
-    data1 = {key: arr[20*56:35*56] for key, arr in data.items()}
-    data2 = {key: arr[42*56:67*56] for key, arr in data.items()}
-    data = {key: np.concatenate((data1[key], data2[key]), axis=0) for key in data1 if key in data2}
-    validate_data(data)
-    print_summary(data)
-    figures = plot_all_groups(data)
-
-
-    
-    #figures = plot_all_groups(data_real)
+    data_real = load_data(filename_real)
+    #data1 = {key: arr[20*56:35*56] for key, arr in data.items()}
+    #data2 = {key: arr[42*56:67*56] for key, arr in data.items()}
+    #data = {key: np.concatenate((data1[key], data2[key]), axis=0) for key in data1 if key in data2}
+    validate_data(data_real)
+    print_summary(data_real)
+    figures = plot_all_groups(data_real)
     #figures = plot_all_groups(data_sim)
     #figures = plot_multi_datasets(data_real, data_sim)
 

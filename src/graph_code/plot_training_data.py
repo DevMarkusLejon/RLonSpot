@@ -1,10 +1,4 @@
-# 1. We have a bunch of csv files
-# 2. We want to plot all of them in different windows or one window with multiple smaller plots.
-# 3. y axis - reward. x axis - time steps. but y is also different for all.
 
-#Make a plot function, attributes can be file name/path, axis labels, title
-
-# make window with number of thingys, call plot function for this area.
 from dataclasses import dataclass
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -145,15 +139,16 @@ def plot_togheter_data(td_list: list[TrainingData], x_col: str = "Step", y_col: 
 def main(): 
     #DIR
     dir = "locomotion_policy_20K_2_phase_lleg_disabled/"
-    #dir = "Standing_policy/"
-    #Saving
+    #dir = "standing_policy/"
+    #Saving, change path to match your system
     save_path = "/local/home/fredrik/thesis/my_spot_thesis/data/plotting_images/" + dir
     save_ending = "_training_plot.png"
 
-    #Files
+    #Files, change path to match our system
     file_path = "/local/home/fredrik/thesis/my_spot_thesis/data/training_logfiles/" + dir
     file_ending = ".csv"
-
+    
+    #Data from standing policy training
     # file_names = [
     #     "rewards/joint_pos_default_tracking",
     #     "rewards/mean_reward",
@@ -177,6 +172,8 @@ def main():
     # ]
     # x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
     # y_cols = ["Reward Value", "Total Reward", "Terminations %", "Terminations %", "Terminations %"]
+    
+    #Data from two-phase training
     file_names = [
         "rewards/base_angular_velocity",
         "rewards/base_linear_velocity",
@@ -213,22 +210,21 @@ def main():
     x_cols = ["Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step", "Training Step"]
     y_cols = ["Reward Value", "Reward Value", "Reward Value", "Total Reward", "Episode Length", "Curriculum Level", "Termination %", "Termination %", "Termination %"]
     
-
     plot_togheter = [
         "Non Foot lleg Contact",
         "Timeout",
         "Body Contact"
     ]
+
     files = [f"{file_path}{f}{file_ending}" for f in file_names]
     #Minimal solution to check if the lists are the same length
     if not (len(file_names) == len(titles) == len(abreviations) == len(x_cols) == len(y_cols)):
         raise ValueError(f"All input lists must have the same length. \n file_names:{len(file_names)}, titles:{len(titles)}, x_cols:{len(x_cols)}, y_cols:{len(y_cols)}")
-
+    #Load data
     training_data = load_csv_files(files, titles, abreviations, x_cols, y_cols)
     for data in training_data:
         add_rolling_smoothing(data)
         add_ema_smoothing(data)
-
 
     #Plotting and saving figs
     figures = []
