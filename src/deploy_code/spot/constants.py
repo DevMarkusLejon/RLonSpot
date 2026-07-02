@@ -19,13 +19,13 @@ ordered_joint_names_bosdyn = [
     "hr_hx",
     "hr_hy",
     "hr_kn",
-    "a0_sh0",
-    "a0_sh1",
-    "a0_el0",
-    "a0_el1",
-    "a0_wr0",
-    "a0_wr1",
-    "a0_f1x",
+    "arm0_sh0",
+    "arm0_sh1",
+    "arm0_el0",
+    "arm0_el1",
+    "arm0_wr0",
+    "arm0_wr1",
+    "arm0_f1x",
 ]
 
 

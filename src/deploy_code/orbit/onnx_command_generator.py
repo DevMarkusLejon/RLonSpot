@@ -144,7 +144,7 @@ class OnnxCommandGenerator:
        
         # post process model output apply action scaling and return to spots
         # joint order and offset
-        test_scale = min(0.1 * self._count, 1) #0.1 is standard value
+        test_scale = min(0.1 * self._count, 1) #0.1 is standard value (0.01 -> count 100. 0.005 -> count 200)
 
         scaled_output = list(map(mul, [self._config.action_scale * self._action_scale_button_variable] * self._USED_DOF, output))
         test_scaled = list(map(mul, [test_scale] * self._USED_DOF, scaled_output))
@@ -159,17 +159,20 @@ class OnnxCommandGenerator:
         
 
         # generate proto message from target joint positions
-
-        #proto = self.create_proto(reordered_output)
-        #proto = self.create_proto_hold()
-        #proto = self.create_proto_blend_hold(reordered_output)
-
+        
+        # use for ground init 
         proto = self.create_proto_blend_fixed(reordered_output)
+
+        # use for suspended init
         # if self._count < 100:
         #     proto = self.create_proto_fixed()
         # else:
         #     proto = self.create_proto_blend_fixed(reordered_output)
         
+        
+        #proto = self.create_proto(reordered_output)
+        #proto = self.create_proto_hold()
+        #proto = self.create_proto_blend_hold(reordered_output)
 
         # cache data for history and logging
         self._last_action = output

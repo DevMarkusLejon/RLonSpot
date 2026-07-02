@@ -1,3 +1,7 @@
+import os
+os.environ["SDL_JOYSTICK_DEVICE"] = "/dev/input/js0"
+os.environ["SDL_VIDEODRIVER"] = "dummy"
+
 import pygame
 
 def print_controller_inputs():

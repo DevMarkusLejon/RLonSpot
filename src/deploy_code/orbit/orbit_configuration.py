@@ -81,7 +81,7 @@ def load_configuration(file: os.PathLike) -> OrbitConfig:
 
         action_scale = env_config["actions"]["joint_pos"]["scale"]
         standing_height = env_config["scene"]["robot"]["init_state"]["pos"][2]
-
+        
     return OrbitConfig(
         kp=joint_kp,
         kd=joint_kd,

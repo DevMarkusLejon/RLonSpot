@@ -99,7 +99,7 @@ def get_joint_velocity(state: robot_state_pb2.RobotStateStreamResponse):
     vel = reorder(state.joint_states.velocity, spot_to_orbit)
     return vel
 
-def get_joint_torques(state: robot_state_pb2.RobotStateStreamResponse):
+def get_joint_load(state: robot_state_pb2.RobotStateStreamResponse):
     """get joint torque from spots state update a reformat for orbit by
     reordering to match orbits expectation
     
