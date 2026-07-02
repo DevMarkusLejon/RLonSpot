@@ -1,7 +1,7 @@
-# Master Thesis: Reinforcement learning for Spot
-This master thesis aims to explore the reinforcement learning capabilities of Boston Dynamics Spot attached with its arm payload. The thesis takes advantage of the Spot RL Researcher kit to deploy rl policies trained in Isaac Lab, which takes advantage of the simulation tool Isaac Sim.
+# Master Thesis: Reinforcement Learning — From Simulation to Deployment on the Robot Platform Spot
+This master thesis aims to explore the reinforcement learning capabilities of Boston Dynamics Spot attached with its arm payload. The thesis takes advantage of the Spot RL Researcher kit to deploy RL policies trained in Isaac Lab, which takes advantage of the simulation tool Isaac Sim.
 
-This repository contains: code for deployment + code and data used in Isaac Lab, trained policies, logs + code for plotting, supporting data and the master thesis.
+This repository contains: code for deployment, code and data used in Isaac Lab, trained policies, logs, and code for plotting.
 
 ## Tested setup
 
@@ -30,8 +30,8 @@ The project was developed and tested across several separate systems. Other vers
 This repository combines files from several parts of the project, but not every part is run directly from this repository.
 
 - Plotting and analysis scripts are run locally from this repository.
-- Isaac Lab training and Isaac Sim simulation are run on an external computing machine using Docker containers.
-- Deployment code is run on the Jetson/Spot RL Researcher Kit.
+- Isaac Lab training and Isaac Sim simulation are run on an external computing machine inside Docker containers.
+- Deployment code is run on a Jetson attached on Spot with the Spot RL Researcher Kit.
 - Additional Spot SDK code is installed and run outside this repository.
 
 For the requirements of each external system, refer to its official installation guide. The Python requirements for the plotting and analysis scripts in `src/graph_code/` are listed in `src/graph_code/requirements.txt`.
@@ -67,7 +67,7 @@ The deployment code in this repository is based on the Boston Dynamics Spot RL e
 - Isaac Sim container installation: https://docs.isaacsim.omniverse.nvidia.com/latest/installation/install_container.html
 - Isaac Sim developer page: https://developer.nvidia.com/isaac-sim
 
-Isaac Sim is the simulator used by Isaac Lab. In this project, Isaac Sim was run using Docker containers on the external computing machine.
+Isaac Sim is the simulator used by Isaac Lab. In this project, Isaac Sim was run using Docker containers on a external computing machine.
 
 ### Isaac Lab
 
@@ -75,7 +75,7 @@ Isaac Sim is the simulator used by Isaac Lab. In this project, Isaac Sim was run
 - Isaac Lab Docker guide: https://isaac-sim.github.io/IsaacLab/main/source/deployment/docker.html
 - Isaac Lab GitHub repository: https://github.com/isaac-sim/IsaacLab
 
-Isaac Lab is used for training and evaluating reinforcement learning policies in simulation before deployment on Spot. In this project, Isaac Lab was run using Docker containers on the external computing machine.
+Isaac Lab is used for training and evaluating reinforcement learning policies in simulation for deployment on Spot. In this project, Isaac Lab was run using Docker containers on a external computing machine.
 
 
 ## Technical manual
@@ -101,7 +101,7 @@ The manual also includes installation notes for the Spot RL Researcher Kit and a
 │
 ├── docs/                         # Notes, setup guides, and project documentation
 ├── media/
-│   ├── images/                   # Images of Spot, experiments, and setup
+│   ├── images/                   # Images of Spot and experiments
 │   └── videos/                   # Videos from experiments and demonstrations
 │
 ├── src/
